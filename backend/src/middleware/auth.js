@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/ApiError');
 const { jwtSecret } = require('../config/env');
 
-const ROLES = Object.freeze({ ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'Staff' });
+const ROLES = Object.freeze({ SUPER_ADMIN: 'SuperAdmin', ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'Staff' });
 
 const auth = (req, res, next) => {
   const authHeader = req.headers.authorization;

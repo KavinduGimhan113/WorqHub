@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const invoiceSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     workOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkOrder' },
     number: { type: String, required: true, trim: true },
     status: { type: String, enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'], default: 'draft' },

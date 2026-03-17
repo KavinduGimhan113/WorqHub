@@ -5,17 +5,19 @@ const express = require('express');
 const auth = require('./auth');
 const tenants = require('./tenants');
 const workOrders = require('./workOrders');
+const customers = require('./customers');
+const inventory = require('./inventory');
+const billing = require('./billing');
+const employees = require('./employees');
 
 const router = express.Router();
 
 router.use('/auth', auth);
 router.use('/tenants', tenants);
 router.use('/work-orders', workOrders);
-
-// Placeholder routes (implement controllers when needed)
-// router.use('/customers', customers);
-// router.use('/inventory', inventory);
-// router.use('/billing', billing);
-// router.use('/reports', reports);
+router.use('/customers', customers);
+router.use('/inventory', inventory);
+router.use('/billing', billing);
+router.use('/employees', employees);
 
 module.exports = router;

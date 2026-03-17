@@ -1,17 +1,20 @@
 /**
- * Invoice form: create new invoice.
+ * Invoice form: create or edit invoice.
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
 import * as customersApi from '../../api/customers';
 
 const initialLineItem = () => ({ description: '', quantity: 1, unitPrice: 0 });
 
 export default function InvoiceForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const isEdit = Boolean(id);
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [loadingInvoice, setLoadingInvoice] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -29,6 +32,31 @@ export default function InvoiceForm() {
       .catch(() => setCustomers([]))
       .finally(() => setLoadingCustomers(false));
   }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    billingApi
+      .getInvoice(id)
+      .then((res) => {
+        const inv = res.data ?? res;
+        const lineItems = (inv.lineItems && inv.lineItems.length > 0)
+          ? inv.lineItems.map((i) => ({
+              description: i.description || '',
+              quantity: i.quantity ?? 1,
+              unitPrice: i.unitPrice ?? 0,
+            }))
+          : [initialLineItem()];
+        setForm({
+          number: inv.number || '',
+          customerId: inv.customerId ? String(inv.customerId) : '',
+          dueDate: inv.dueDate ? inv.dueDate.slice(0, 10) : '',
+          status: inv.status || 'draft',
+          lineItems,
+        });
+      })
+      .catch((err) => setError(err.response?.data?.message || 'Failed to load invoice'))
+      .finally(() => setLoadingInvoice(false));
+  }, [id]);
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -93,17 +121,25 @@ export default function InvoiceForm() {
     }
     setSaving(true);
     const payload = buildPayload();
-    billingApi
-      .createInvoice(payload)
+    const promise = isEdit ? billingApi.updateInvoice(id, payload) : billingApi.createInvoice(payload);
+    promise
       .then(() => navigate('/billing'))
-      .catch((err) => setError(err.response?.data?.message || 'Failed to create invoice'))
+      .catch((err) => setError(err.response?.data?.message || (isEdit ? 'Failed to update invoice' : 'Failed to create invoice')))
       .finally(() => setSaving(false));
   };
+
+  if (loadingInvoice) {
+    return (
+      <div className="loading-screen" style={{ minHeight: 200 }}>
+        <div className="loading-spinner" aria-label="Loading" />
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="page-toolbar">
-        <h2 className="page-title">New invoice</h2>
+        <h2 className="page-title">{isEdit ? 'Edit invoice' : 'New invoice'}</h2>
         <Link to="/billing" className="btn btn-secondary">
           Back to list
         </Link>
@@ -228,7 +264,7 @@ export default function InvoiceForm() {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Creating…' : 'Create invoice'}
+            {saving ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save invoice' : 'Create invoice')}
           </button>
           <Link to="/billing" className="btn btn-secondary">
             Cancel

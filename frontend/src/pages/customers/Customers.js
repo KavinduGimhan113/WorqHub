@@ -2,8 +2,9 @@
  * Customers page. List and manage customers.
  */
 import React, { useState, useEffect } from 'react';
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom';
 import * as customersApi from '../../api/customers';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -68,7 +69,7 @@ export default function Customers() {
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Address</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th style={{ width: 180 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -79,11 +80,16 @@ export default function Customers() {
                   <td>{c.phone || '—'}</td>
                   <td>{c.address ? `${c.address.slice(0, 40)}${c.address.length > 40 ? '…' : ''}` : '—'}</td>
                   <td>
-                    <div className="table-actions">
-                      <Link to={`/customers/${c._id}/edit`} className="btn btn-ghost" style={{ fontSize: '0.875rem' }}>
-                        Edit
-                      </Link>
-                    </div>
+                    <ActionButtons
+                      basePath="/customers"
+                      id={c._id}
+                      onDelete={() =>
+                        customersApi.remove(c._id)
+                          .then(() => setCustomers((prev) => prev.filter((x) => x._id !== c._id)))
+                          .catch((err) => setError(err.response?.data?.message || 'Failed to delete'))
+                      }
+                      itemName="customer"
+                    />
                   </td>
                 </tr>
               ))}

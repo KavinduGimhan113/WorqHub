@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
+import ActionButtons from '../../components/ActionButtons';
 
 const statusClass = {
   draft: 'badge-draft',
@@ -77,7 +78,7 @@ export default function Billing() {
                 <th>Status</th>
                 <th>Due date</th>
                 <th>Amount</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th style={{ width: 180 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -97,11 +98,16 @@ export default function Billing() {
                   </td>
                   <td>{inv.total != null ? `$${Number(inv.total).toFixed(2)}` : '—'}</td>
                   <td>
-                    <div className="table-actions">
-                      <button type="button" className="btn btn-ghost" disabled style={{ fontSize: '0.875rem' }}>
-                        View
-                      </button>
-                    </div>
+                    <ActionButtons
+                      basePath="/billing"
+                      id={inv._id}
+                      onDelete={() =>
+                        billingApi.deleteInvoice(inv._id)
+                          .then(() => setInvoices((prev) => prev.filter((x) => x._id !== inv._id)))
+                          .catch((err) => setError(err.response?.data?.message || 'Failed to delete'))
+                      }
+                      itemName="invoice"
+                    />
                   </td>
                 </tr>
               ))}

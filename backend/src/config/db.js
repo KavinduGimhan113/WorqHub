@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const { mongoUri, nodeEnv } = require('./env');
 
 const connectDB = async () => {
-  if (!mongoUri || mongoUri.includes('cluster.mongodb.net') || mongoUri.includes('xxxxx')) {
+  if (!mongoUri || mongoUri.includes('xxxxx')) {
     console.error(
       'MONGO_URI is missing or still the placeholder. Edit backend/.env and set MONGO_URI to your MongoDB Atlas connection string (e.g. from Atlas: Connect → Drivers → Node.js).'
     );

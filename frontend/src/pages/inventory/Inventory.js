@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as inventoryApi from '../../api/inventory';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
@@ -36,9 +37,9 @@ export default function Inventory() {
     <>
       <div className="page-toolbar">
         <h2 className="page-title">Inventory</h2>
-        <button type="button" className="btn btn-primary" disabled>
+        <Link to="/inventory/new" className="btn btn-primary">
           Add item
-        </button>
+        </Link>
       </div>
       <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
         Track stock levels, SKUs, and reorder points.
@@ -70,7 +71,7 @@ export default function Inventory() {
                 <th>Unit</th>
                 <th>Min Qty</th>
                 <th>Location</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th style={{ width: 180 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -83,11 +84,16 @@ export default function Inventory() {
                   <td>{item.minQuantity ?? '—'}</td>
                   <td>{item.location || '—'}</td>
                   <td>
-                    <div className="table-actions">
-                      <Link to={`/inventory/${item._id}/edit`} className="btn btn-ghost" style={{ fontSize: '0.875rem' }}>
-                        Edit
-                      </Link>
-                    </div>
+                    <ActionButtons
+                      basePath="/inventory"
+                      id={item._id}
+                      onDelete={() =>
+                        inventoryApi.remove(item._id)
+                          .then(() => setItems((prev) => prev.filter((x) => x._id !== item._id)))
+                          .catch((err) => setError(err.response?.data?.message || 'Failed to delete'))
+                      }
+                      itemName="item"
+                    />
                   </td>
                 </tr>
               ))}

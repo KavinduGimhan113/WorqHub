@@ -2,6 +2,7 @@
  * App constants: roles, routes, API base.
  */
 export const ROLES = Object.freeze({
+  SUPER_ADMIN: 'SuperAdmin',
   ADMIN: 'Admin',
   MANAGER: 'Manager',
   STAFF: 'Staff',

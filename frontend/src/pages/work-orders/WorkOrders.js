@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as workOrdersApi from '../../api/workOrders';
+import ActionButtons from '../../components/ActionButtons';
 
 const statusClass = {
   draft: 'badge-draft',
@@ -71,7 +72,7 @@ export default function WorkOrders() {
                 <th>Priority</th>
                 <th>Customer</th>
                 <th>Scheduled</th>
-                <th style={{ width: 100 }}>Actions</th>
+                <th style={{ width: 180 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -91,11 +92,16 @@ export default function WorkOrders() {
                       : '—'}
                   </td>
                   <td>
-                    <div className="table-actions">
-                      <Link to={`/work-orders/${wo._id}/edit`} className="btn btn-ghost" style={{ fontSize: '0.875rem' }}>
-                        Edit
-                      </Link>
-                    </div>
+                    <ActionButtons
+                      basePath="/work-orders"
+                      id={wo._id}
+                      onDelete={() =>
+                        workOrdersApi.remove(wo._id)
+                          .then(() => setOrders((prev) => prev.filter((o) => o._id !== wo._id)))
+                          .catch((err) => setError(err.response?.data?.message || 'Failed to delete'))
+                      }
+                      itemName="work order"
+                    />
                   </td>
                 </tr>
               ))}

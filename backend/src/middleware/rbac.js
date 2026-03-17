@@ -15,9 +15,9 @@ const requireRole = (allowedRoles = []) => (req, res, next) => {
   next();
 };
 
-// Convenience: Admin only
-const requireAdmin = requireRole([ROLES.ADMIN]);
+// Convenience: Admin and SuperAdmin
+const requireAdmin = requireRole([ROLES.SUPER_ADMIN, ROLES.ADMIN]);
 // Manager and above
-const requireManager = requireRole([ROLES.ADMIN, ROLES.MANAGER]);
+const requireManager = requireRole([ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER]);
 
 module.exports = { requireRole, requireAdmin, requireManager };

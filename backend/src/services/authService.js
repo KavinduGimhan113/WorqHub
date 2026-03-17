@@ -27,7 +27,8 @@ function generateToken(user) {
 }
 
 async function login(email, password, tenantId) {
-  const filter = { email, isActive: true };
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const filter = { email: normalizedEmail, isActive: true };
   if (tenantId) filter.tenantId = tenantId;
   const user = await User.findOne(filter).select('+passwordHash');
   if (!user) throw new ApiError(401, 'Invalid email or password');
