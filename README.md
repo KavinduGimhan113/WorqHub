@@ -1,4 +1,4 @@
-# 🚀 WorkHub – Multi-Tenant MERN SaaS Platform
+# 🚀 Worqhub– Multi-Tenant MERN SaaS Platform
 
 WorkHub is a **multi-tenant SaaS platform** built using the **MERN stack** that enables SMEs to manage **work orders, inventory, customers, invoicing, and reports** within a single shared system while maintaining **strict tenant data isolation**.
 
