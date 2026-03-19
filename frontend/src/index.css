@@ -1,15 +1,15 @@
 /* Worqhub — Design system & base styles */
 :root,
 [data-theme="light"] {
-  /* Brand — orange/red accent */
-  --color-primary: #ea580c;
-  --color-primary-hover: #c2410c;
-  --color-primary-light: #fff7ed;
+  /* Brand — #F06021 orange accent */
+  --color-primary: #F06021;
+  --color-primary-hover: #d94e0f;
+  --color-primary-light: #fff5f0;
   /* Neutrals */
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-border: #e2e8f0;
-  --color-border-focus: #ea580c;
+  --color-border-focus: #F06021;
   --color-text: #1f2937;
   --color-text-muted: #64748b;
   --color-text-inverse: #ffffff;
@@ -17,7 +17,7 @@
   --color-sidebar-bg: #ffffff;
   --color-sidebar-text: #616161;
   --color-sidebar-hover: #f5f5f5;
-  --color-sidebar-active: #dc2626;
+  --color-sidebar-active: #F06021;
   /* States */
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
@@ -25,6 +25,8 @@
   /* Layout */
   --sidebar-width: 240px;
   --header-height: 56px;
+  --app-shell-padding: 1rem;
+  --app-shell-gap: 1.5rem;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -33,7 +35,7 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* App shell gradient */
-  --app-shell-gradient: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%);
+  --app-shell-gradient: linear-gradient(135deg, #fff5f0 0%, #ffede5 50%, #ffdfd0 100%);
   /* Dashboard revenue card */
   --dashboard-revenue-bg: linear-gradient(135deg, #ffffff 0%, #fefce8 100%);
   --dashboard-revenue-border: #fef3c7;
@@ -42,20 +44,20 @@
 }
 
 [data-theme="dark"] {
-  --color-primary: #f97316;
-  --color-primary-hover: #ea580c;
+  --color-primary: #F06021;
+  --color-primary-hover: #e05518;
   --color-primary-light: #431407;
   --color-bg: #0f172a;
   --color-surface: #1e293b;
   --color-border: #334155;
-  --color-border-focus: #f97316;
+  --color-border-focus: #F06021;
   --color-text: #f1f5f9;
   --color-text-muted: #94a3b8;
   --color-text-inverse: #0f172a;
   --color-sidebar-bg: #1e293b;
   --color-sidebar-text: #94a3b8;
   --color-sidebar-hover: #334155;
-  --color-sidebar-active: #f97316;
+  --color-sidebar-active: #F06021;
   --color-error: #f87171;
   --color-error-bg: #450a0a;
   --color-success: #4ade80;
@@ -252,14 +254,17 @@ textarea.input {
 /* Layout */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  padding: var(--app-shell-padding);
+  gap: var(--app-shell-gap);
   background: var(--app-shell-gradient);
 }
 
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  margin: 1rem 0 1rem 1rem;
+  height: calc(100vh - 2 * var(--app-shell-padding));
   background-color: var(--color-sidebar-bg);
   color: var(--color-sidebar-text);
   display: flex;
@@ -286,7 +291,9 @@ textarea.input {
 
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   padding: 0.5rem 1rem;
+  overflow-y: auto;
 }
 
 .sidebar-link svg {
@@ -314,7 +321,7 @@ textarea.input {
 }
 
 .sidebar-link.active {
-  background-color: rgba(220, 38, 38, 0.08);
+  background-color: rgba(240, 96, 33, 0.08);
   color: var(--color-sidebar-active);
   font-weight: 600;
 }
@@ -343,15 +350,14 @@ textarea.input {
 }
 
 .sidebar-logout:hover {
-  background-color: rgba(220, 38, 38, 0.08);
+  background-color: rgba(240, 96, 33, 0.08);
 }
 
 .main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  margin: 1rem 1rem 1rem 0;
   background-color: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
@@ -425,7 +431,9 @@ textarea.input {
 
 .page {
   flex: 1;
+  min-height: 0;
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .page-title {
@@ -469,7 +477,7 @@ textarea.input {
   margin: 0 0 1.75rem;
   font-size: 2.25rem;
   font-weight: 700;
-  color: #dc2626;
+  color: #F06021;
   letter-spacing: -0.02em;
 }
 
@@ -514,7 +522,7 @@ textarea.input {
 
 .login-input:focus {
   outline: none;
-  border-bottom-color: #dc2626;
+  border-bottom-color: #F06021;
 }
 
 .login-password-row {
@@ -537,7 +545,7 @@ textarea.input {
 }
 
 .login-password-wrap:focus-within {
-  border-bottom-color: #dc2626;
+  border-bottom-color: #F06021;
 }
 
 .login-password-wrap .login-input {
@@ -567,7 +575,7 @@ textarea.input {
 .login-forgot {
   font-size: 1rem;
   font-weight: 500;
-  color: #ea580c;
+  color: #F06021;
   background: none;
   border: none;
   padding: 0;
@@ -594,14 +602,14 @@ textarea.input {
 .login-remember input {
   width: 1rem;
   height: 1rem;
-  accent-color: #dc2626;
+  accent-color: #F06021;
 }
 
 .login-error {
   margin-top: 1rem;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  color: #dc2626;
+  color: #F06021;
   background-color: #fef2f2;
   border-radius: var(--radius-md);
 }
@@ -614,7 +622,7 @@ textarea.input {
   font-size: 1.125rem;
   font-weight: 600;
   color: #ffffff;
-  background-color: #dc2626;
+  background-color: #F06021;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -638,7 +646,7 @@ textarea.input {
 
 .login-signup-link {
   font-weight: 600;
-  color: #ea580c;
+  color: #F06021;
   text-decoration: none;
 }
 
@@ -649,7 +657,7 @@ textarea.input {
 /* Promo panel — right side, background image with orange overlay, text block at bottom */
 .login-panel-promo {
   justify-content: flex-end;
-  background-color: #c2410c;
+  background-color: #d94e0f;
   color: #ffffff;
 }
 
@@ -687,7 +695,7 @@ textarea.input {
   font-size: 0.9375rem;
   font-weight: 600;
   color: #ffffff;
-  background-color: #dc2626;
+  background-color: #F06021;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -958,26 +966,26 @@ textarea.input {
 }
 
 .dashboard-new-task:hover {
-  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+  background: linear-gradient(135deg, #fff5f0 0%, #fffbeb 100%);
   border-left-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.08);
+  box-shadow: 0 4px 12px rgba(240, 96, 33, 0.08);
 }
 
 .dashboard-new-task-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  background: linear-gradient(135deg, #F06021 0%, #d94e0f 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+  box-shadow: 0 4px 12px rgba(240, 96, 33, 0.3);
 }
 
 .dashboard-new-task:hover .dashboard-new-task-icon {
-  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4);
+  box-shadow: 0 6px 16px rgba(240, 96, 33, 0.4);
 }
 
 .dashboard-new-task-content {
@@ -1219,7 +1227,7 @@ textarea.input {
 
 .btn-action-edit {
   background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  color: #c2410c;
+  color: #d94e0f;
   border-color: #fed7aa;
 }
 
@@ -1418,6 +1426,8 @@ textarea.input {
 @media (max-width: 991px) {
   .app-shell {
     flex-direction: column;
+    padding: 0;
+    gap: 0;
     padding-left: env(safe-area-inset-left, 0);
     padding-right: env(safe-area-inset-right, 0);
   }

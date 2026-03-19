@@ -40,7 +40,7 @@ const ordersData = [
   { name: '7', value: 25 },
 ];
 
-const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#dc2626'];
+const COLORS = ['#F06021', '#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#d94e0f'];
 
 const activityData = [
   { emp: 'Emp 1', desc: 'Lorem ipsum dolor', status: 'Pending', time: '1:54 PM' },
@@ -112,7 +112,7 @@ export default function Dashboard() {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748b" />
                 <YAxis domain={[10, 30]} tick={{ fontSize: 12 }} stroke="#64748b" />
                 <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#dc2626" strokeWidth={3} dot={{ fill: '#dc2626', r: 4 }} />
+                <Line type="monotone" dataKey="value" stroke="#F06021" strokeWidth={3} dot={{ fill: '#F06021', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
