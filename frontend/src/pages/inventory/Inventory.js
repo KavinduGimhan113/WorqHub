@@ -1,10 +1,26 @@
 /**
- * Inventory page. List and manage stock items.
+ * Inventory page. List stock items; categories are registered on a separate page.
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as inventoryApi from '../../api/inventory';
 import ActionButtons from '../../components/ActionButtons';
+
+function loadItems(setItems, setError) {
+  return inventoryApi
+    .list()
+    .then((body) => {
+      const rows = body?.data ?? body;
+      setItems(Array.isArray(rows) ? rows : []);
+    })
+    .catch((err) => {
+      if (err.response?.status === 404) {
+        setItems([]);
+      } else {
+        setError(err.response?.data?.message || 'Failed to load inventory');
+      }
+    });
+}
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
@@ -12,17 +28,8 @@ export default function Inventory() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    inventoryApi
-      .list()
-      .then((res) => setItems(res.data?.data ?? res.data ?? []))
-      .catch((err) => {
-        if (err.response?.status === 404) {
-          setItems([]);
-        } else {
-          setError(err.response?.data?.message || 'Failed to load inventory');
-        }
-      })
-      .finally(() => setLoading(false));
+    setError(null);
+    loadItems(setItems, setError).finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -37,12 +44,18 @@ export default function Inventory() {
     <>
       <div className="page-toolbar">
         <h2 className="page-title">Inventory</h2>
-        <Link to="/inventory/new" className="btn btn-primary">
-          Add item
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link to="/inventory/categories/register" className="btn btn-secondary">
+            Register categories
+          </Link>
+          <Link to="/inventory/new" className="btn btn-primary">
+            Add item
+          </Link>
+        </div>
       </div>
       <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
-        Track stock levels, SKUs, and reorder points.
+        Track stock levels, SKUs, and reorder points.{' '}
+        <Link to="/inventory/categories/register">Register categories</Link> first so you can assign them to items.
       </p>
 
       {error && (
@@ -67,6 +80,7 @@ export default function Inventory() {
               <tr>
                 <th>SKU</th>
                 <th>Name</th>
+                <th>Category</th>
                 <th>Quantity</th>
                 <th>Unit</th>
                 <th>Min Qty</th>
@@ -79,6 +93,11 @@ export default function Inventory() {
                 <tr key={item._id}>
                   <td>{item.sku}</td>
                   <td>{item.name}</td>
+                  <td>
+                    {typeof item.categoryId === 'object' && item.categoryId?.name
+                      ? item.categoryId.name
+                      : '—'}
+                  </td>
                   <td>{item.quantity}</td>
                   <td>{item.unit || 'unit'}</td>
                   <td>{item.minQuantity ?? '—'}</td>

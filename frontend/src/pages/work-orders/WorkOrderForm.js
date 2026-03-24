@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import * as workOrdersApi from '../../api/workOrders';
+import * as customersApi from '../../api/customers';
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -27,9 +28,12 @@ export default function WorkOrderForm() {
   const isEdit = Boolean(id);
 
   const [loading, setLoading] = useState(isEdit);
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [customers, setCustomers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
+    customerId: '',
     title: '',
     description: '',
     status: 'draft',
@@ -39,12 +43,24 @@ export default function WorkOrderForm() {
   });
 
   useEffect(() => {
+    customersApi
+      .list()
+      .then((res) => setCustomers(res.data?.data ?? res.data ?? []))
+      .catch(() => setCustomers([]))
+      .finally(() => setCustomersLoading(false));
+  }, []);
+
+  useEffect(() => {
     if (isEdit && id) {
       workOrdersApi
         .get(id)
         .then((res) => {
           const data = res.data?.data ?? res.data ?? res;
+          const cid = data.customerId;
+          const customerIdStr =
+            typeof cid === 'object' && cid?._id ? cid._id : cid ? String(cid) : '';
           setForm({
+            customerId: customerIdStr,
             title: data.title ?? '',
             description: data.description ?? '',
             status: data.status ?? 'draft',
@@ -86,6 +102,7 @@ export default function WorkOrderForm() {
   const buildPayload = () => {
     const payload = {
       title: form.title.trim(),
+      customerId: form.customerId.trim(),
       description: form.description.trim() || undefined,
       status: form.status,
       priority: form.priority,
@@ -105,6 +122,10 @@ export default function WorkOrderForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    if (!form.customerId.trim()) {
+      setError('Customer is required.');
+      return;
+    }
     if (!form.title.trim()) {
       setError('Title is required.');
       return;
@@ -140,6 +161,31 @@ export default function WorkOrderForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Details</h3>
+          <div className="form-group">
+            <label className="label" htmlFor="customerId">Customer *</label>
+            <select
+              id="customerId"
+              className="input"
+              value={form.customerId}
+              onChange={(e) => update('customerId', e.target.value)}
+              disabled={customersLoading || customers.length === 0}
+              required
+            >
+              <option value="">{customersLoading ? 'Loading customers…' : 'Select a customer'}</option>
+              {customers.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                  {c.email ? ` — ${c.email}` : ''}
+                </option>
+              ))}
+            </select>
+            {customers.length === 0 && (
+              <p className="form-hint" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                No customers yet.{' '}
+                <Link to="/customers/new">Add a customer</Link> first.
+              </p>
+            )}
+          </div>
           <div className="form-group">
             <label className="label" htmlFor="title">Title *</label>
             <input

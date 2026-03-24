@@ -14,6 +14,7 @@ import Customers from '../pages/customers/Customers';
 import CustomerForm from '../pages/customers/CustomerForm';
 import Inventory from '../pages/inventory/Inventory';
 import InventoryForm from '../pages/inventory/InventoryForm';
+import InventoryCategoriesRegister from '../pages/inventory/InventoryCategoriesRegister';
 import Billing from '../pages/billing/Billing';
 import InvoiceForm from '../pages/billing/InvoiceForm';
 import Employees from '../pages/employees/Employees';
@@ -42,6 +43,7 @@ export function AppRoutes() {
         <Route path="customers/new" element={<CustomerForm />} />
         <Route path="customers/:id/edit" element={<CustomerForm />} />
         <Route path="inventory" element={<Inventory />} />
+        <Route path="inventory/categories/register" element={<InventoryCategoriesRegister />} />
         <Route path="inventory/new" element={<InventoryForm />} />
         <Route path="inventory/:id/edit" element={<InventoryForm />} />
         <Route path="billing" element={<Billing />} />

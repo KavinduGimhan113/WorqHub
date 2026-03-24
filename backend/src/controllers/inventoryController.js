@@ -7,12 +7,17 @@ const ApiError = require('../utils/ApiError');
 
 exports.list = asyncHandler(async (req, res) => {
   const filter = { tenantId: req.tenantId };
-  const items = await Inventory.find(filter).sort({ name: 1 }).lean();
+  const items = await Inventory.find(filter)
+    .sort({ name: 1 })
+    .populate('categoryId', 'name')
+    .lean();
   res.json({ success: true, data: items });
 });
 
 exports.get = asyncHandler(async (req, res) => {
-  const doc = await Inventory.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
+  const doc = await Inventory.findOne({ _id: req.params.id, tenantId: req.tenantId })
+    .populate('categoryId', 'name')
+    .lean();
   if (!doc) throw new ApiError(404, 'Inventory item not found');
   res.json({ success: true, data: doc });
 });

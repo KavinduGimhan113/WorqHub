@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getApiErrorMessage } from '../../api/errors';
 import { useTheme } from '../../context/ThemeContext';
 import backgroundImg from '../../assets/background.png';
 
@@ -29,12 +30,7 @@ export default function Login() {
       await login(normalizedEmail, password);
       navigate(from, { replace: true });
     } catch (err) {
-      const msg =
-        err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK' || err.code === 'ECONNREFUSED' || !err.response || [502, 503].includes(err.response?.status))
-          ? 'Cannot reach server. Is the backend running on port 5000?'
-          : 'Login failed';
-      setError(msg);
+      setError(getApiErrorMessage(err, 'Login failed'));
     } finally {
       setLoading(false);
     }

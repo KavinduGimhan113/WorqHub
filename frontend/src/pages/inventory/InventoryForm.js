@@ -15,7 +15,10 @@ export default function InventoryForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [form, setForm] = useState({
+    categoryId: '',
     sku: '',
     name: '',
     quantity: 0,
@@ -25,12 +28,27 @@ export default function InventoryForm() {
   });
 
   useEffect(() => {
+    inventoryApi
+      .listCategories()
+      .then((body) => {
+        const rows = body?.data ?? body;
+        setCategories(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => setCategories([]))
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
+  useEffect(() => {
     if (isEdit && id) {
       inventoryApi
         .get(id)
         .then((res) => {
           const data = res.data?.data ?? res.data ?? res;
+          const cid = data.categoryId;
+          const categoryIdStr =
+            typeof cid === 'object' && cid?._id ? String(cid._id) : cid ? String(cid) : '';
           setForm({
+            categoryId: categoryIdStr,
             sku: data.sku ?? '',
             name: data.name ?? '',
             quantity: data.quantity ?? 0,
@@ -61,6 +79,7 @@ export default function InventoryForm() {
     const payload = {
       sku: form.sku.trim(),
       name: form.name.trim(),
+      categoryId: form.categoryId.trim() || null,
       quantity: Number(form.quantity) || 0,
       unit: form.unit || 'unit',
       minQuantity: Number(form.minQuantity) || 0,
@@ -95,6 +114,31 @@ export default function InventoryForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Item details</h3>
+          <div className="form-group">
+            <label className="label" htmlFor="categoryId">Category</label>
+            <select
+              id="categoryId"
+              className="input"
+              value={form.categoryId}
+              onChange={(e) => update('categoryId', e.target.value)}
+              disabled={categoriesLoading}
+            >
+              <option value="">
+                {categoriesLoading ? 'Loading categories…' : 'Select a category (optional)'}
+              </option>
+              {categories.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {!categoriesLoading && categories.length === 0 && (
+              <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                No categories yet.{' '}
+                <Link to="/inventory/categories/register">Register categories</Link> first — you can add as many as you need.
+              </p>
+            )}
+          </div>
           <div className="form-row">
             <div className="form-group">
               <label className="label" htmlFor="sku">SKU *</label>

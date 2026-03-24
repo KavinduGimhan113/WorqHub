@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as workOrdersApi from '../../api/workOrders';
+import * as customersApi from '../../api/customers';
 import ActionButtons from '../../components/ActionButtons';
 
 const statusClass = {
@@ -14,15 +15,47 @@ const statusClass = {
   cancelled: 'badge-cancelled',
 };
 
+/** Customer linked to the work order (who the job is for). */
+function CustomerCell({ customerId, customersById }) {
+  let c = null;
+  if (customerId && typeof customerId === 'object' && customerId.name) {
+    c = customerId;
+  } else if (customerId && customersById?.size) {
+    const key =
+      typeof customerId === 'string'
+        ? customerId
+        : customerId && typeof customerId === 'object' && customerId._id != null
+          ? String(customerId._id)
+          : null;
+    if (key) c = customersById.get(key) || null;
+  }
+  if (c && c.name) {
+    return (
+      <div className="table-customer-cell">
+        <span className="table-customer-name">{c.name}</span>
+        {c.email ? <span className="table-customer-meta">{c.email}</span> : null}
+        {c.phone ? <span className="table-customer-meta">{c.phone}</span> : null}
+      </div>
+    );
+  }
+  return <span className="table-customer-missing">—</span>;
+}
+
 export default function WorkOrders() {
   const [orders, setOrders] = useState([]);
+  const [customersById, setCustomersById] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    workOrdersApi
-      .list()
-      .then((res) => setOrders(res.data?.data ?? res.data ?? []))
+    Promise.all([workOrdersApi.list(), customersApi.list().catch(() => ({ data: [] }))])
+      .then(([woBody, custBody]) => {
+        const rows = woBody?.data ?? woBody;
+        setOrders(Array.isArray(rows) ? rows : []);
+        const custList = custBody?.data ?? custBody;
+        const list = Array.isArray(custList) ? custList : [];
+        setCustomersById(new Map(list.map((x) => [String(x._id), x])));
+      })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load work orders'))
       .finally(() => setLoading(false));
   }, []);
@@ -68,9 +101,9 @@ export default function WorkOrders() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Customer</th>
                 <th>Status</th>
                 <th>Priority</th>
-                <th>Customer</th>
                 <th>Scheduled</th>
                 <th style={{ width: 180 }}>Actions</th>
               </tr>
@@ -80,12 +113,14 @@ export default function WorkOrders() {
                 <tr key={wo._id}>
                   <td>{wo.title}</td>
                   <td>
+                    <CustomerCell customerId={wo.customerId} customersById={customersById} />
+                  </td>
+                  <td>
                     <span className={`badge ${statusClass[wo.status] || 'badge-draft'}`}>
                       {wo.status?.replace('_', ' ') || 'draft'}
                     </span>
                   </td>
                   <td>{wo.priority || '—'}</td>
-                  <td>{wo.customerId ? '—' : '—'}</td>
                   <td>
                     {wo.scheduledAt
                       ? new Date(wo.scheduledAt).toLocaleDateString()
