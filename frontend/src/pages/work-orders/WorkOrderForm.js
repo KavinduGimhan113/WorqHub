@@ -1,10 +1,11 @@
 /**
  * Work order form: create new or edit existing.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import * as workOrdersApi from '../../api/workOrders';
 import * as customersApi from '../../api/customers';
+import * as employeesApi from '../../api/employees';
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -30,6 +31,10 @@ export default function WorkOrderForm() {
   const [loading, setLoading] = useState(isEdit);
   const [customersLoading, setCustomersLoading] = useState(true);
   const [customers, setCustomers] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  /** Controlled value for “add employee” dropdown (reset after each add). */
+  const [assignEmployeePicker, setAssignEmployeePicker] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -39,6 +44,7 @@ export default function WorkOrderForm() {
     status: 'draft',
     priority: 'medium',
     scheduledAt: '',
+    assignedEmployeeIds: [],
     items: [initialItem()],
   });
 
@@ -51,6 +57,14 @@ export default function WorkOrderForm() {
   }, []);
 
   useEffect(() => {
+    employeesApi
+      .list()
+      .then((res) => setEmployees(res.data?.data ?? res.data ?? []))
+      .catch(() => setEmployees([]))
+      .finally(() => setEmployeesLoading(false));
+  }, []);
+
+  useEffect(() => {
     if (isEdit && id) {
       workOrdersApi
         .get(id)
@@ -59,6 +73,13 @@ export default function WorkOrderForm() {
           const cid = data.customerId;
           const customerIdStr =
             typeof cid === 'object' && cid?._id ? cid._id : cid ? String(cid) : '';
+          const assignees = Array.isArray(data.assignedEmployeeIds)
+            ? data.assignedEmployeeIds
+                .map((x) =>
+                  typeof x === 'object' && x?._id != null ? String(x._id) : x != null ? String(x) : ''
+                )
+                .filter(Boolean)
+            : [];
           setForm({
             customerId: customerIdStr,
             title: data.title ?? '',
@@ -66,6 +87,7 @@ export default function WorkOrderForm() {
             status: data.status ?? 'draft',
             priority: data.priority ?? 'medium',
             scheduledAt: data.scheduledAt ? data.scheduledAt.slice(0, 16) : '',
+            assignedEmployeeIds: assignees,
             items: Array.isArray(data.items) && data.items.length
               ? data.items.map((i) => ({
                   name: i.name ?? '',
@@ -79,6 +101,19 @@ export default function WorkOrderForm() {
         .finally(() => setLoading(false));
     }
   }, [id, isEdit]);
+
+  const employeesSorted = useMemo(
+    () =>
+      [...employees].sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
+      ),
+    [employees]
+  );
+
+  const employeesAvailableForPicker = useMemo(
+    () => employeesSorted.filter((emp) => !form.assignedEmployeeIds.includes(String(emp._id))),
+    [employeesSorted, form.assignedEmployeeIds]
+  );
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -99,6 +134,22 @@ export default function WorkOrderForm() {
     }));
   };
 
+  const addAssignedEmployeeFromDropdown = (employeeId) => {
+    if (!employeeId) return;
+    setForm((prev) => {
+      if (prev.assignedEmployeeIds.includes(employeeId)) return prev;
+      return { ...prev, assignedEmployeeIds: [...prev.assignedEmployeeIds, employeeId] };
+    });
+    setAssignEmployeePicker('');
+  };
+
+  const removeAssignedEmployee = (employeeId) => {
+    setForm((prev) => ({
+      ...prev,
+      assignedEmployeeIds: prev.assignedEmployeeIds.filter((x) => x !== employeeId),
+    }));
+  };
+
   const buildPayload = () => {
     const payload = {
       title: form.title.trim(),
@@ -114,6 +165,7 @@ export default function WorkOrderForm() {
           quantity: Number(i.quantity) || 0,
           unit: i.unit || 'unit',
         })),
+      assignedEmployeeIds: form.assignedEmployeeIds,
     };
     if (payload.items.length === 0) delete payload.items;
     return payload;
@@ -156,7 +208,7 @@ export default function WorkOrderForm() {
         </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="card card-body" style={{ maxWidth: 640 }}>
+      <form onSubmit={handleSubmit} className="card card-body" style={{ maxWidth: 720 }}>
         {error && <div className="form-error" role="alert">{error}</div>}
 
         <div className="form-section">
@@ -186,6 +238,80 @@ export default function WorkOrderForm() {
               </p>
             )}
           </div>
+
+          <div className="form-group">
+            {employeesLoading ? (
+              <p className="form-hint" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                Loading employees…
+              </p>
+            ) : employees.length === 0 ? (
+              <p className="form-hint" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                No employees yet.{' '}
+                <Link to="/employees/new">Add an employee</Link> to assign them here.
+              </p>
+            ) : (
+              <div className="work-order-assign-block" role="group" aria-label="Assign employees">
+                <label className="label work-order-assign-select-label" htmlFor="assign-employee-select">
+                  Add employee
+                </label>
+                <select
+                  id="assign-employee-select"
+                  className="input work-order-assign-select"
+                  value={assignEmployeePicker}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) addAssignedEmployeeFromDropdown(v);
+                  }}
+                  disabled={employeesAvailableForPicker.length === 0}
+                >
+                  <option value="">
+                    {employeesAvailableForPicker.length === 0
+                      ? form.assignedEmployeeIds.length > 0
+                        ? 'All employees are assigned — remove one to re-add'
+                        : 'No employees available'
+                      : 'Choose an employee to add…'}
+                  </option>
+                  {employeesAvailableForPicker.map((emp) => (
+                    <option key={emp._id} value={String(emp._id)}>
+                      {emp.name}
+                      {emp.department ? ` — ${emp.department}` : emp.position ? ` — ${emp.position}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {form.assignedEmployeeIds.length > 0 && (
+                  <ul className="work-order-assign-chips" aria-label="Employees assigned to this work order">
+                    {form.assignedEmployeeIds.map((empId) => {
+                      const emp = employees.find((e) => String(e._id) === empId);
+                      const label = emp?.name || 'Employee';
+                      const meta =
+                        emp && (emp.position || emp.department)
+                          ? [emp.position, emp.department].filter(Boolean).join(' · ')
+                          : '';
+                      return (
+                        <li key={empId} className="work-order-assign-chip">
+                          <span className="work-order-assign-chip-text">
+                            <span className="work-order-assign-chip-name">{label}</span>
+                            {meta ? (
+                              <span className="work-order-assign-chip-meta">{meta}</span>
+                            ) : null}
+                          </span>
+                          <button
+                            type="button"
+                            className="work-order-assign-chip-remove"
+                            onClick={() => removeAssignedEmployee(empId)}
+                            aria-label={`Remove ${label} from this work order`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="form-group">
             <label className="label" htmlFor="title">Title *</label>
             <input

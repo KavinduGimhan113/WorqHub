@@ -17,6 +17,17 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
     message = 'Invalid id or data format';
   }
+  // Mongo/Atlas connectivity and TLS handshake failures
+  if (
+    err.name === 'MongoServerSelectionError' ||
+    err.name === 'MongoNetworkError' ||
+    String(err.code || '').includes('ERR_SSL') ||
+    String(err.message || '').toLowerCase().includes('tlsv1 alert internal error')
+  ) {
+    statusCode = 503;
+    message =
+      'Database connection issue. Check MongoDB Atlas network/TLS settings and try again.';
+  }
 
   if (nodeEnv === 'development') {
     console.error(err);

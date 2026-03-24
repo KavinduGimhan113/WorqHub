@@ -18,6 +18,8 @@ const workOrderSchema = new mongoose.Schema(
     scheduledAt: { type: Date },
     completedAt: { type: Date },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    /** Field staff (Employee records) assigned to the job */
+    assignedEmployeeIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
     items: [{ name: String, quantity: Number, unit: String }],
   },
   { timestamps: true }

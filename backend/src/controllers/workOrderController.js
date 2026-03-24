@@ -4,6 +4,7 @@
 const mongoose = require('mongoose');
 const WorkOrder = require('../models/WorkOrder');
 const Customer = require('../models/Customer');
+const Employee = require('../models/Employee');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 
@@ -49,10 +50,34 @@ async function attachCustomerDetails(workOrders, tenantId) {
   }
 }
 
+async function normalizeAssignedEmployeeIds(raw, tenantId) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    throw new ApiError(400, 'assignedEmployeeIds must be an array');
+  }
+  const ids = [...new Set(raw.map((id) => String(id || '').trim()).filter(Boolean))];
+  if (ids.length === 0) return [];
+  const valid = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (valid.length !== ids.length) {
+    throw new ApiError(400, 'Invalid employee id in assignment list');
+  }
+  const count = await Employee.countDocuments({
+    _id: { $in: valid },
+    tenantId,
+  });
+  if (count !== valid.length) {
+    throw new ApiError(400, 'One or more assigned employees were not found in your organization');
+  }
+  return valid;
+}
+
 exports.list = asyncHandler(async (req, res) => {
-  const { status, page = 1, limit = 20 } = req.query;
+  const { status, employeeId, page = 1, limit = 20 } = req.query;
   const filter = { tenantId: req.tenantId };
   if (status) filter.status = status;
+  if (employeeId && mongoose.Types.ObjectId.isValid(employeeId)) {
+    filter.assignedEmployeeIds = employeeId;
+  }
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
     WorkOrder.find(filter)
@@ -60,6 +85,7 @@ exports.list = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(Number(limit))
       .populate('customerId', 'name email phone')
+      .populate('assignedEmployeeIds', 'name employeeId email department')
       .lean(),
     WorkOrder.countDocuments(filter),
   ]);
@@ -70,6 +96,7 @@ exports.list = asyncHandler(async (req, res) => {
 exports.get = asyncHandler(async (req, res) => {
   const doc = await WorkOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     .populate('customerId', 'name email phone')
+    .populate('assignedEmployeeIds', 'name employeeId email department')
     .lean();
   if (!doc) throw new ApiError(404, 'Work order not found');
   await attachCustomerDetails([doc], req.tenantId);
@@ -81,9 +108,16 @@ exports.create = asyncHandler(async (req, res) => {
   if (!body.customerId || !String(body.customerId).trim()) {
     throw new ApiError(400, 'Customer is required');
   }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'assignedEmployeeIds')) {
+    body.assignedEmployeeIds = await normalizeAssignedEmployeeIds(
+      req.body.assignedEmployeeIds,
+      req.tenantId
+    );
+  }
   const doc = await WorkOrder.create(body);
   let populated = await WorkOrder.findById(doc._id)
     .populate('customerId', 'name email phone')
+    .populate('assignedEmployeeIds', 'name employeeId email department')
     .lean();
   if (!populated) populated = doc.toObject ? doc.toObject() : doc;
   await attachCustomerDetails([populated], req.tenantId);
@@ -95,6 +129,12 @@ exports.update = asyncHandler(async (req, res) => {
   if (!body.customerId || !String(body.customerId).trim()) {
     throw new ApiError(400, 'Customer is required');
   }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'assignedEmployeeIds')) {
+    body.assignedEmployeeIds = await normalizeAssignedEmployeeIds(
+      req.body.assignedEmployeeIds,
+      req.tenantId
+    );
+  }
   const updated = await WorkOrder.findOneAndUpdate(
     { _id: req.params.id, tenantId: req.tenantId },
     body,
@@ -103,6 +143,7 @@ exports.update = asyncHandler(async (req, res) => {
   if (!updated) throw new ApiError(404, 'Work order not found');
   const doc = await WorkOrder.findById(updated._id)
     .populate('customerId', 'name email phone')
+    .populate('assignedEmployeeIds', 'name employeeId email department')
     .lean();
   await attachCustomerDetails([doc], req.tenantId);
   res.json({ success: true, data: doc });

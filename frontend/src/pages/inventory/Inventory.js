@@ -53,11 +53,6 @@ export default function Inventory() {
           </Link>
         </div>
       </div>
-      <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
-        Track stock levels, SKUs, and reorder points.{' '}
-        <Link to="/inventory/categories/register">Register categories</Link> first so you can assign them to items.
-      </p>
-
       {error && (
         <div className="login-error" style={{ marginBottom: '1rem' }} role="alert">
           {error}
