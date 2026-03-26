@@ -17,6 +17,7 @@ export default function InventoryForm() {
   const [error, setError] = useState('');
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [skuLoading, setSkuLoading] = useState(!isEdit);
   const [form, setForm] = useState({
     categoryId: '',
     sku: '',
@@ -37,6 +38,19 @@ export default function InventoryForm() {
       .catch(() => setCategories([]))
       .finally(() => setCategoriesLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isEdit) {
+      inventoryApi
+        .suggestNextSku()
+        .then((body) => {
+          const sku = body?.data?.sku ?? body?.sku;
+          if (sku) setForm((prev) => ({ ...prev, sku }));
+        })
+        .catch(() => {})
+        .finally(() => setSkuLoading(false));
+    }
+  }, [isEdit]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -146,12 +160,19 @@ export default function InventoryForm() {
                 id="sku"
                 type="text"
                 className="input"
-                value={form.sku}
+                value={skuLoading ? '' : form.sku}
                 onChange={(e) => update('sku', e.target.value)}
-                placeholder="e.g. WIDGET-001"
+                placeholder={skuLoading ? 'Generating SKU…' : 'WIDGET-001'}
                 required
-                readOnly={isEdit}
+                readOnly={isEdit || skuLoading}
+                disabled={skuLoading}
+                aria-busy={skuLoading}
               />
+              {!isEdit && !skuLoading && (
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  Auto-generated (WIDGET-###). You can edit before saving if needed.
+                </p>
+              )}
               {isEdit && (
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                   SKU cannot be changed when editing.

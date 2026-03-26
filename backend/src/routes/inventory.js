@@ -17,9 +17,14 @@ categoriesRouter.delete('/:id', inventoryCategoryController.remove);
 router.use('/categories', categoriesRouter);
 
 router.get('/', inventoryController.list);
-router.get('/:id', inventoryController.get);
 router.post('/', inventoryController.create);
-router.put('/:id', inventoryController.update);
-router.delete('/:id', inventoryController.remove);
+/** On parent router so `/next-sku` is never matched as `/:id` (safe across Express versions). */
+router.get('/next-sku', inventoryController.suggestNextSku);
+
+const inventoryScoped = express.Router();
+inventoryScoped.get('/:id', inventoryController.get);
+inventoryScoped.put('/:id', inventoryController.update);
+inventoryScoped.delete('/:id', inventoryController.remove);
+router.use('/', inventoryScoped);
 
 module.exports = router;

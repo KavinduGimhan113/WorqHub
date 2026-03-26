@@ -7,6 +7,8 @@ const workOrderSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+    /** Monotonic per tenant (assigned on create) — displayed as 001, 002, … */
+    workOrderNumber: { type: Number, index: true },
     title: { type: String, required: true, trim: true },
     description: { type: String },
     status: {
@@ -34,5 +36,6 @@ const workOrderSchema = new mongoose.Schema(
 
 workOrderSchema.index({ tenantId: 1, createdAt: -1 });
 workOrderSchema.index({ tenantId: 1, status: 1 });
+workOrderSchema.index({ tenantId: 1, workOrderNumber: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('WorkOrder', workOrderSchema);

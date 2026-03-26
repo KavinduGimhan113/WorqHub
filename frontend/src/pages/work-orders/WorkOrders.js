@@ -7,6 +7,17 @@ import * as workOrdersApi from '../../api/workOrders';
 import * as customersApi from '../../api/customers';
 import ActionButtons from '../../components/ActionButtons';
 
+function formatWorkOrderDisplayId(wo) {
+  const n = wo?.workOrderNumber != null ? Number(wo.workOrderNumber) : NaN;
+  if (Number.isFinite(n) && n >= 1) {
+    return String(Math.floor(n)).padStart(3, '0');
+  }
+  const id = wo?._id;
+  if (id && typeof id === 'string') return `…${id.slice(-6)}`;
+  if (id) return `…${String(id).slice(-6)}`;
+  return '—';
+}
+
 const statusClass = {
   draft: 'badge-draft',
   scheduled: 'badge-scheduled',
@@ -110,6 +121,7 @@ export default function WorkOrders() {
           <table className="table">
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Title</th>
                 <th>Customer</th>
                 <th>Assigned</th>
@@ -122,6 +134,11 @@ export default function WorkOrders() {
             <tbody>
               {orders.map((wo) => (
                 <tr key={wo._id}>
+                  <td>
+                    <span className="work-order-list-number" title={wo._id ? String(wo._id) : undefined}>
+                      {formatWorkOrderDisplayId(wo)}
+                    </span>
+                  </td>
                   <td>{wo.title}</td>
                   <td>
                     <CustomerCell customerId={wo.customerId} customersById={customersById} />

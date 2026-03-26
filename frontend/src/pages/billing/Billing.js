@@ -78,7 +78,7 @@ export default function Billing() {
                 <th>Status</th>
                 <th>Due date</th>
                 <th>Amount</th>
-                <th style={{ width: 180 }}>Actions</th>
+                <th style={{ width: 240 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -101,6 +101,11 @@ export default function Billing() {
                     <ActionButtons
                       basePath="/billing"
                       id={inv._id}
+                      onDownloadPdf={() =>
+                        billingApi
+                          .downloadInvoicePdf(inv._id)
+                          .catch((err) => setError(err.message || 'Failed to download PDF'))
+                      }
                       onDelete={() =>
                         billingApi.deleteInvoice(inv._id)
                           .then(() => setInvoices((prev) => prev.filter((x) => x._id !== inv._id)))

@@ -4,6 +4,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Tenant = require('../models/Tenant');
 const ApiError = require('../utils/ApiError');
 const { jwtSecret } = require('../config/env');
 
@@ -36,7 +37,8 @@ async function login(email, password, tenantId) {
   if (!valid) throw new ApiError(401, 'Invalid email or password');
   const token = generateToken(user);
   const { passwordHash, ...safe } = user.toObject();
-  return { user: safe, token };
+  const tenant = await Tenant.findById(user.tenantId).select('name').lean();
+  return { user: { ...safe, tenantName: tenant?.name || '' }, token };
 }
 
 module.exports = { hashPassword, comparePassword, generateToken, login };

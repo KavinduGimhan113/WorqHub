@@ -3,6 +3,7 @@
  */
 const mongoose = require('mongoose');
 const WorkOrder = require('../models/WorkOrder');
+const WorkOrderCounter = require('../models/WorkOrderCounter');
 const Customer = require('../models/Customer');
 const Employee = require('../models/Employee');
 const asyncHandler = require('../utils/asyncHandler');
@@ -48,6 +49,26 @@ async function attachCustomerDetails(workOrders, tenantId) {
     const doc = sid && map.get(sid);
     if (doc) wo.customerId = doc;
   }
+}
+
+/** Align counter with existing workOrderNumber values so the next auto number does not collide. */
+async function syncWorkOrderCounterFromDb(tenantId) {
+  const [agg] = await WorkOrder.aggregate([
+    { $match: { tenantId } },
+    { $group: { _id: null, maxNum: { $max: '$workOrderNumber' } } },
+  ]);
+  const raw = agg?.maxNum;
+  const maxFromOrders =
+    raw != null && Number.isFinite(Number(raw)) ? Math.floor(Number(raw)) : 0;
+  const existing = await WorkOrderCounter.findOne({ tenantId }).lean();
+  const seq = existing?.seq || 0;
+  const target = Math.max(seq, maxFromOrders);
+  const updated = await WorkOrderCounter.findOneAndUpdate(
+    { tenantId },
+    { $set: { seq: target } },
+    { new: true, upsert: true }
+  );
+  return updated.seq;
 }
 
 async function normalizeAssignedEmployeeIds(raw, tenantId) {
@@ -108,12 +129,20 @@ exports.create = asyncHandler(async (req, res) => {
   if (!body.customerId || !String(body.customerId).trim()) {
     throw new ApiError(400, 'Customer is required');
   }
+  delete body.workOrderNumber;
   if (Object.prototype.hasOwnProperty.call(req.body, 'assignedEmployeeIds')) {
     body.assignedEmployeeIds = await normalizeAssignedEmployeeIds(
       req.body.assignedEmployeeIds,
       req.tenantId
     );
   }
+  await syncWorkOrderCounterFromDb(req.tenantId);
+  const counter = await WorkOrderCounter.findOneAndUpdate(
+    { tenantId: req.tenantId },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  body.workOrderNumber = counter.seq;
   const doc = await WorkOrder.create(body);
   let populated = await WorkOrder.findById(doc._id)
     .populate('customerId', 'name email phone')
@@ -126,6 +155,7 @@ exports.create = asyncHandler(async (req, res) => {
 
 exports.update = asyncHandler(async (req, res) => {
   const body = { ...req.body };
+  delete body.workOrderNumber;
   if (!body.customerId || !String(body.customerId).trim()) {
     throw new ApiError(400, 'Customer is required');
   }
