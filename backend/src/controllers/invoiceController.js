@@ -16,6 +16,30 @@ function assertMongoObjectId(id, label = 'id') {
   }
 }
 
+function lineItemRowTotal(r) {
+  if (r.amount != null && Number.isFinite(Number(r.amount))) return Number(r.amount);
+  return (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0);
+}
+
+/** Recompute subtotal, discount amount, and total from line items + % discount + fixed tax. */
+function normalizeInvoiceTotals(body) {
+  const items = Array.isArray(body.lineItems) ? body.lineItems : [];
+  const subtotal = Math.round(items.reduce((s, r) => s + lineItemRowTotal(r), 0) * 100) / 100;
+  const discPct = Math.min(100, Math.max(0, Number(body.discountPercent) || 0));
+  const rawDiscount = discPct > 0 ? Math.round(((subtotal * discPct) / 100) * 100) / 100 : 0;
+  const discountAmount = Math.min(subtotal, rawDiscount);
+  const tax = Math.max(0, Number(body.tax) || 0);
+  const total = Math.round((subtotal - discountAmount + tax) * 100) / 100;
+  return {
+    ...body,
+    subtotal,
+    discountPercent: discPct,
+    discountAmount,
+    tax,
+    total,
+  };
+}
+
 async function syncInvoiceCounterFromDb(tenantId) {
   const docs = await Invoice.find({ tenantId }).select('number').lean();
   const maxFromNumbers = maxInvoiceSeqFromNumbers(docs.map((d) => d.number));
@@ -32,7 +56,10 @@ async function syncInvoiceCounterFromDb(tenantId) {
 
 exports.list = asyncHandler(async (req, res) => {
   const filter = { tenantId: req.tenantId };
-  const items = await Invoice.find(filter).sort({ createdAt: -1 }).lean();
+  const items = await Invoice.find(filter)
+    .sort({ createdAt: -1 })
+    .populate({ path: 'customerId', select: 'name email' })
+    .lean();
   res.json({ success: true, data: items });
 });
 
@@ -92,7 +119,7 @@ exports.create = asyncHandler(async (req, res) => {
   body.invoiceSeq = counter.seq;
   body.number = formatInvoiceNumber(counter.seq);
 
-  const doc = await Invoice.create(body);
+  const doc = await Invoice.create(normalizeInvoiceTotals(body));
   res.status(201).json({ success: true, data: doc });
 });
 
@@ -102,9 +129,10 @@ exports.update = asyncHandler(async (req, res) => {
   if (body.customerId === '' || body.customerId == null) body.customerId = undefined;
   delete body.invoiceSeq;
   delete body.number;
+  const normalized = normalizeInvoiceTotals(body);
   const doc = await Invoice.findOneAndUpdate(
     { _id: req.params.id, tenantId: req.tenantId },
-    body,
+    normalized,
     { new: true, runValidators: true }
   ).lean();
   if (!doc) throw new ApiError(404, 'Invoice not found');

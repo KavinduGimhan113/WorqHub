@@ -14,6 +14,17 @@ const statusClass = {
   cancelled: 'badge-cancelled',
 };
 
+function invoiceCustomerLabel(inv) {
+  const c = inv?.customerId;
+  if (c && typeof c === 'object' && c.name) return String(c.name).trim() || '—';
+  return '—';
+}
+
+function formatMoneyLkr(n) {
+  const x = Number(n) || 0;
+  return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function Billing() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +96,7 @@ export default function Billing() {
               {invoices.map((inv) => (
                 <tr key={inv._id}>
                   <td>{inv.number}</td>
-                  <td>{inv.customerId ? '—' : '—'}</td>
+                  <td>{invoiceCustomerLabel(inv)}</td>
                   <td>
                     <span className={`badge ${statusClass[inv.status] || 'badge-draft'}`}>
                       {inv.status || 'draft'}
@@ -96,7 +107,15 @@ export default function Billing() {
                       ? new Date(inv.dueDate).toLocaleDateString()
                       : '—'}
                   </td>
-                  <td>{inv.total != null ? `$${Number(inv.total).toFixed(2)}` : '—'}</td>
+                  <td>
+                    {inv.total != null ? (
+                      <>
+                        {formatMoneyLkr(inv.total)} <span className="invoice-form-currency-suffix">LKR</span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>
                     <ActionButtons
                       basePath="/billing"

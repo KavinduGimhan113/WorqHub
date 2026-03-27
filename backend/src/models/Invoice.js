@@ -16,6 +16,11 @@ const invoiceSchema = new mongoose.Schema(
     paidAt: { type: Date },
     lineItems: [{ description: String, quantity: Number, unitPrice: Number, amount: Number }],
     subtotal: { type: Number, default: 0 },
+    /** Optional % off subtotal (0 = none). */
+    discountPercent: { type: Number, default: 0 },
+    /** LKR amount computed from subtotal × discountPercent (stored for PDF/history). */
+    discountAmount: { type: Number, default: 0 },
+    /** Fixed government / levy amount in LKR (not a %). */
     tax: { type: Number, default: 0 },
     total: { type: Number, default: 0 },
   },

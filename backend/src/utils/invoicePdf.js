@@ -127,8 +127,13 @@ function buildInvoicePdf(doc, { tenant, invoice, customer }) {
   const items = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
   const sub =
     invoice.subtotal != null ? Number(invoice.subtotal) : items.reduce((s, r) => s + lineAmount(r), 0);
+  const discountAmt = Number(invoice.discountAmount) || 0;
+  const discPct = Number(invoice.discountPercent) || 0;
   const tax = Number(invoice.tax) || 0;
-  const total = invoice.total != null ? Number(invoice.total) : sub + tax;
+  const storedTotal = invoice.total != null ? Number(invoice.total) : NaN;
+  const total = Number.isFinite(storedTotal)
+    ? storedTotal
+    : Math.round((sub - discountAmt + tax) * 100) / 100;
   const issued = invoice.createdAt || new Date();
   const serviceDateStr = fmtDateUs(issued);
   const woLine = workOrderRef(invoice);
@@ -279,8 +284,11 @@ function buildInvoicePdf(doc, { tenant, invoice, customer }) {
 
   y = summaryTop;
   sumRow('Subtotal', money(sub, currency));
-  sumRow('Tax', money(tax, currency));
-  sumRow('Discount', money(0, currency));
+  if (discountAmt > 0) {
+    const discLabel = discPct > 0 ? `Discount (${discPct}%)` : 'Discount';
+    sumRow(discLabel, money(-discountAmt, currency));
+  }
+  sumRow('Gov. tax (fixed)', money(tax, currency));
   y += 4;
   doc.strokeColor(UI.border).lineWidth(0.75);
   doc.moveTo(sumX, y).lineTo(COL.right, y).stroke();

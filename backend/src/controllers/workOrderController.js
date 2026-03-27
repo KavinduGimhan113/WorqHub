@@ -93,25 +93,31 @@ async function normalizeAssignedEmployeeIds(raw, tenantId) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  const { status, employeeId, page = 1, limit = 20 } = req.query;
+  const { status, employeeId, customerId, page = 1, limit = 20 } = req.query;
   const filter = { tenantId: req.tenantId };
   if (status) filter.status = status;
   if (employeeId && mongoose.Types.ObjectId.isValid(employeeId)) {
     filter.assignedEmployeeIds = employeeId;
   }
-  const skip = (Number(page) - 1) * Number(limit);
+  if (customerId && mongoose.Types.ObjectId.isValid(customerId)) {
+    filter.customerId = customerId;
+  }
+  let lim = Number(limit);
+  if (!Number.isFinite(lim) || lim < 1) lim = 20;
+  if (lim > 200) lim = 200;
+  const skip = (Number(page) - 1) * lim;
   const [items, total] = await Promise.all([
     WorkOrder.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit))
+      .limit(lim)
       .populate('customerId', 'name email phone')
       .populate('assignedEmployeeIds', 'name employeeId email department')
       .lean(),
     WorkOrder.countDocuments(filter),
   ]);
   await attachCustomerDetails(items, req.tenantId);
-  res.json({ success: true, data: items, total, page: Number(page), limit: Number(limit) });
+  res.json({ success: true, data: items, total, page: Number(page), limit: lim });
 });
 
 exports.get = asyncHandler(async (req, res) => {

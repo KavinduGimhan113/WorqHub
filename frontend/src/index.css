@@ -1035,7 +1035,7 @@ textarea.input {
 }
 
 .dashboard-table-card:first-of-type {
-  grid-column: span 1;
+  grid-column: span 2;
 }
 
 .dashboard-table-card:last-of-type {
@@ -1079,12 +1079,44 @@ textarea.input {
   text-decoration: underline;
 }
 
+.dashboard-activity-desc-link {
+  font-weight: 500;
+  color: var(--color-sidebar-active);
+  text-decoration: none;
+}
+
+.dashboard-activity-desc-link:hover {
+  text-decoration: underline;
+}
+
 .dashboard-chart-card {
   grid-column: span 1;
 }
 
 .dashboard-chart {
   min-height: 220px;
+}
+
+.dashboard-chart-subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.dashboard-chart-empty {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard-invoice-number {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .btn-export {
@@ -1146,10 +1178,47 @@ textarea.input {
   color: var(--color-text-muted);
 }
 
+.dashboard-finance-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.dashboard-revenue-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.dashboard-revenue-sub {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.dashboard-revenue-badge--muted {
+  color: var(--color-text-muted);
+  background-color: var(--color-border);
+}
+
+.dashboard-revenue-badge--amber {
+  color: #b45309;
+  background-color: #fef3c7;
+}
+
+[data-theme='dark'] .dashboard-revenue-badge--amber {
+  color: #fcd34d;
+  background-color: #422006;
+}
+
 .dashboard-revenue-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  min-height: 9.5rem;
   padding: 1.25rem;
   background: var(--dashboard-revenue-bg);
   border-color: var(--dashboard-revenue-border);
@@ -1208,6 +1277,10 @@ textarea.input {
 
 @media (max-width: 991px) {
   .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-finance-row {
     grid-template-columns: 1fr;
   }
 
@@ -2087,6 +2160,17 @@ textarea.input {
   white-space: pre-wrap;
 }
 
+.invoice-form-customer-wo-items .table th,
+.invoice-form-customer-wo-items .table td {
+  padding: 0.5rem 0.65rem;
+}
+
+.invoice-form-wo-refs {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
 .invoice-form-rule {
   border: none;
   border-top: 1px solid var(--color-border);
@@ -2120,6 +2204,35 @@ textarea.input {
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--color-primary);
+}
+
+.invoice-form-adjustments-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.25rem;
+  margin: 1rem 0 0;
+  padding: 1rem 1.25rem;
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.invoice-form-optional-hint {
+  font-weight: 400;
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text-muted);
+}
+
+.invoice-form-money-row--deduct span:last-child {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .invoice-form-adjustments-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .invoice-form-table-wrap {
@@ -2200,6 +2313,16 @@ textarea.input {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
+}
+
+.invoice-form-amount-cell .input {
+  font-weight: 600;
+}
+
+.invoice-form-currency-suffix {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .invoice-form-summary-grid {
