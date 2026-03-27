@@ -167,6 +167,107 @@ function formatActivityTime(iso) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+const DASHBOARD_QUICK_ACTIONS = [
+  { to: '/work-orders/new', label: 'New work order', icon: 'clipboard' },
+  { to: '/billing/new', label: 'New invoice', icon: 'dollar' },
+  { to: '/customers/new', label: 'New customer', icon: 'users' },
+  { to: '/inventory/new', label: 'Add inventory', icon: 'box' },
+  { to: '/employees/new', label: 'New employee', icon: 'briefcase' },
+  { to: '/work-orders', label: 'All work orders', icon: 'list' },
+  { to: '/customers', label: 'Customers', icon: 'users-list' },
+  { to: '/reports', label: 'Reports', icon: 'chart' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
+];
+
+function QuickActionIcon({ name }) {
+  const common = {
+    width: 22,
+    height: 22,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    'aria-hidden': true,
+  };
+  switch (name) {
+    case 'clipboard':
+      return (
+        <svg {...common}>
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+        </svg>
+      );
+    case 'dollar':
+      return (
+        <svg {...common}>
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      );
+    case 'users':
+      return (
+        <svg {...common}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'users-list':
+      return (
+        <svg {...common}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="19" y1="8" x2="23" y2="8" />
+          <line x1="19" y1="12" x2="23" y2="12" />
+          <line x1="19" y1="16" x2="23" y2="16" />
+        </svg>
+      );
+    case 'box':
+      return (
+        <svg {...common}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        </svg>
+      );
+    case 'briefcase':
+      return (
+        <svg {...common}>
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+      );
+    case 'list':
+      return (
+        <svg {...common}>
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      );
+    case 'chart':
+      return (
+        <svg {...common}>
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function buildActivityFeedFromWorkOrders(workOrders, limit = 10) {
   const list = Array.isArray(workOrders) ? [...workOrders] : [];
   list.sort((a, b) => {
@@ -501,7 +602,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="dashboard-card dashboard-table-card">
+        <div className="dashboard-card dashboard-table-card dashboard-activity-feed-card">
           <div className="dashboard-card-header">
             <h3 className="dashboard-card-title">Recent Activity Feed</h3>
             <Link to="/work-orders" className="dashboard-view-all">View all</Link>
@@ -549,7 +650,30 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="dashboard-card dashboard-table-card">
+        <div
+          className="dashboard-card dashboard-quick-actions"
+          role="navigation"
+          aria-label="Quick actions"
+        >
+          <div className="dashboard-quick-actions-head">
+            <h3 className="dashboard-card-title">Quick actions</h3>
+            <p className="dashboard-chart-subtitle dashboard-quick-actions-sub">Jump to common tasks</p>
+          </div>
+          <ul className="dashboard-quick-actions-grid">
+            {DASHBOARD_QUICK_ACTIONS.map((a) => (
+              <li key={a.to}>
+                <Link to={a.to} className="dashboard-quick-action">
+                  <span className="dashboard-quick-action-icon">
+                    <QuickActionIcon name={a.icon} />
+                  </span>
+                  <span className="dashboard-quick-action-label">{a.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="dashboard-card dashboard-table-card dashboard-recent-invoices-card">
           <div className="dashboard-card-header">
             <h3 className="dashboard-card-title">Recent invoices</h3>
             <Link to="/billing" className="dashboard-view-all">View all</Link>
