@@ -22,12 +22,21 @@ async function seed() {
   await mongoose.connect(MONGO_URI);
   console.log('Connected to MongoDB');
 
-  let tenant = await Tenant.findOne({ name: 'Worqhub Demo' });
-  if (!tenant) {
-    tenant = await Tenant.create({ name: 'Worqhub Demo', plan: 'standard' });
-    console.log('Created tenant:', tenant.name, tenant._id);
-  } else {
+  /** Prefer canonical name first (deterministic). Then migrate legacy demo name; then create. */
+  let tenant = await Tenant.findOne({ name: 'Worqhub' });
+  if (tenant) {
     console.log('Using existing tenant:', tenant.name, tenant._id);
+  } else {
+    const legacyDemo = await Tenant.findOne({ name: 'Worqhub Demo' });
+    if (legacyDemo) {
+      legacyDemo.name = 'Worqhub';
+      await legacyDemo.save();
+      tenant = legacyDemo;
+      console.log('Renamed tenant Worqhub Demo → Worqhub:', tenant._id);
+    } else {
+      tenant = await Tenant.create({ name: 'Worqhub', plan: 'standard' });
+      console.log('Created tenant:', tenant.name, tenant._id);
+    }
   }
 
   const passwordHash = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);

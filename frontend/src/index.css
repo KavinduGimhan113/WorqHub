@@ -1115,6 +1115,25 @@ textarea.input {
   color: var(--color-text);
 }
 
+.report-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report-stat-download {
+  margin-top: 0.25rem;
+  align-self: flex-start;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.85rem;
+}
+
+.report-stat-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-danger, #c53030);
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
