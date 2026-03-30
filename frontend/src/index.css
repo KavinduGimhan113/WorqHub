@@ -288,9 +288,11 @@ textarea.input {
 }
 
 .sidebar-logo {
-  height: 48px;
+  height: 56px;
   width: auto;
+  max-width: min(200px, 100%);
   display: block;
+  object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }

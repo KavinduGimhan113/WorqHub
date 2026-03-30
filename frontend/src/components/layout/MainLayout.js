@@ -6,7 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import logo from '../../assets/l_white.png';
+import logoLight from '../../assets/l_black.png';
+import logoDark from '../../assets/l_white.png';
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
@@ -113,6 +114,7 @@ function getPageTitle(pathname) {
 export default function MainLayout() {
   const { user, role, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
+  const sidebarLogo = isDark ? logoDark : logoLight;
   const { pathname } = useLocation();
   const pageTitle = getPageTitle(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -129,7 +131,7 @@ export default function MainLayout() {
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={closeSidebar} aria-hidden />
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <img src={logo} alt="Worqhub" className="sidebar-logo" />
+          <img src={sidebarLogo} alt="Worqhub" className="sidebar-logo" />
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, label, end, icon }) => (
