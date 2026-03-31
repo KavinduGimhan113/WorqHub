@@ -1203,6 +1203,10 @@ textarea.input {
   gap: 1.25rem;
 }
 
+.dashboard-finance-row--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .dashboard-revenue-hint {
   margin: 0 0 0.75rem;
   font-size: 0.75rem;

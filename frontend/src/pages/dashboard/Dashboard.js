@@ -21,6 +21,7 @@ import * as customersApi from '../../api/customers';
 import * as billingApi from '../../api/billing';
 import * as inventoryApi from '../../api/inventory';
 import * as expensesApi from '../../api/expenses';
+import { showExpensesInUi } from '../../config/features';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -225,7 +226,7 @@ export default function Dashboard() {
       customersApi.list().catch(() => ({ data: [] })),
       billingApi.listInvoices().catch(() => ({ data: [] })),
       inventoryApi.lowStock({ threshold: LOW_STOCK_THRESHOLD, limit: 15 }).catch(() => ({ _failed: true })),
-      expensesApi.summary().catch(() => null),
+      showExpensesInUi ? expensesApi.summary().catch(() => null) : Promise.resolve(null),
     ]).then(([woRes, custRes, invRes, lowRes, exSumRes]) => {
       const workOrders = Array.isArray(woRes?.data) ? woRes.data : woRes?.data?.data ?? [];
       const workOrderListTotal =
@@ -282,14 +283,16 @@ export default function Dashboard() {
         }
       }
 
-      const exInner = exSumRes?.data;
-      if (exInner && typeof exInner.totalAllTime === 'number') {
-        setExpenseSummary({
-          totalAllTime: exInner.totalAllTime,
-          totalThisMonth: exInner.totalThisMonth,
-          countAllTime: exInner.countAllTime,
-          countThisMonth: exInner.countThisMonth,
-        });
+      if (showExpensesInUi) {
+        const exInner = exSumRes?.data;
+        if (exInner && typeof exInner.totalAllTime === 'number') {
+          setExpenseSummary({
+            totalAllTime: exInner.totalAllTime,
+            totalThisMonth: exInner.totalThisMonth,
+            countAllTime: exInner.countAllTime,
+            countThisMonth: exInner.countThisMonth,
+          });
+        }
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -387,7 +390,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="dashboard-finance-row" role="region" aria-label="Financial summary">
+        <div
+          className={`dashboard-finance-row${showExpensesInUi ? '' : ' dashboard-finance-row--two'}`}
+          role="region"
+          aria-label="Financial summary"
+        >
           <div className="dashboard-card dashboard-revenue-card">
             <div className="dashboard-revenue-header">
               <span className="dashboard-revenue-label">Revenue</span>
@@ -430,33 +437,35 @@ export default function Dashboard() {
               </p>
             )}
           </div>
-          <div className="dashboard-card dashboard-revenue-card dashboard-revenue-card--expenses">
-            <div className="dashboard-revenue-header">
-              <span className="dashboard-revenue-label">Expenses</span>
-              <span className="dashboard-revenue-badge">
-                {loading
-                  ? '—'
-                  : expenseSummary.countAllTime > 0
-                    ? `${expenseSummary.countAllTime} recorded`
-                    : 'None yet'}
-              </span>
+          {showExpensesInUi && (
+            <div className="dashboard-card dashboard-revenue-card dashboard-revenue-card--expenses">
+              <div className="dashboard-revenue-header">
+                <span className="dashboard-revenue-label">Expenses</span>
+                <span className="dashboard-revenue-badge">
+                  {loading
+                    ? '—'
+                    : expenseSummary.countAllTime > 0
+                      ? `${expenseSummary.countAllTime} recorded`
+                      : 'None yet'}
+                </span>
+              </div>
+              <p className="dashboard-revenue-hint">Recorded expenses (all time)</p>
+              <div className="dashboard-revenue-value">
+                {loading ? '—' : formatMoneyLkr(expenseSummary.totalAllTime)}
+                <span className="dashboard-revenue-currency"> LKR</span>
+              </div>
+              {!loading && expenseSummary.countThisMonth > 0 && (
+                <p className="dashboard-revenue-sub">
+                  This month: {formatMoneyLkr(expenseSummary.totalThisMonth)} LKR
+                </p>
+              )}
+              {!loading && (
+                <Link to="/expenses" className="dashboard-expenses-link">
+                  Manage expenses
+                </Link>
+              )}
             </div>
-            <p className="dashboard-revenue-hint">Recorded expenses (all time)</p>
-            <div className="dashboard-revenue-value">
-              {loading ? '—' : formatMoneyLkr(expenseSummary.totalAllTime)}
-              <span className="dashboard-revenue-currency"> LKR</span>
-            </div>
-            {!loading && expenseSummary.countThisMonth > 0 && (
-              <p className="dashboard-revenue-sub">
-                This month: {formatMoneyLkr(expenseSummary.totalThisMonth)} LKR
-              </p>
-            )}
-            {!loading && (
-              <Link to="/expenses" className="dashboard-expenses-link">
-                Manage expenses
-              </Link>
-            )}
-          </div>
+          )}
         </div>
 
         <div className="dashboard-card dashboard-stack-card">

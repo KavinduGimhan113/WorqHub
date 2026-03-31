@@ -10,6 +10,7 @@ import { useTheme } from '../../context/ThemeContext';
 import logoForLightSidebar from '../../assets/l_black.svg';
 /** Simplified light-on-dark wordmark for dark sidebar. */
 import logoForDarkSidebar from '../../assets/l_white.svg';
+import { showExpensesInUi } from '../../config/features';
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
@@ -128,6 +129,8 @@ export default function MainLayout() {
   const toggleSidebar = () => setSidebarOpen((o) => !o);
   const closeSidebar = () => setSidebarOpen(false);
 
+  const visibleNavItems = showExpensesInUi ? navItems : navItems.filter((item) => item.to !== '/expenses');
+
   return (
     <div className="app-shell">
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={closeSidebar} aria-hidden />
@@ -136,7 +139,7 @@ export default function MainLayout() {
           <img src={sidebarLogo} alt="Worqhub" className="sidebar-logo" />
         </div>
         <nav className="sidebar-nav">
-          {navItems.map(({ to, label, end, icon }) => (
+          {visibleNavItems.map(({ to, label, end, icon }) => (
             <NavLink
               key={to}
               to={to}
