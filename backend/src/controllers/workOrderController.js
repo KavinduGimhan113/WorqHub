@@ -6,8 +6,10 @@ const WorkOrder = require('../models/WorkOrder');
 const WorkOrderCounter = require('../models/WorkOrderCounter');
 const Customer = require('../models/Customer');
 const Employee = require('../models/Employee');
+const Inventory = require('../models/Inventory');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
+const { applyWorkOrderInventoryDelta } = require('../utils/workOrderInventory');
 
 /**
  * Ensure each work order has customerId as { name, email, phone } when a valid ref exists.
@@ -92,6 +94,48 @@ async function normalizeAssignedEmployeeIds(raw, tenantId) {
   return valid;
 }
 
+/**
+ * Normalize work order line items and validate inventoryId belongs to tenant.
+ */
+async function sanitizeWorkOrderItems(rawItems, tenantId) {
+  if (rawItems == null) return [];
+  if (!Array.isArray(rawItems)) throw new ApiError(400, 'items must be an array');
+  const tid =
+    tenantId instanceof mongoose.Types.ObjectId
+      ? tenantId
+      : new mongoose.Types.ObjectId(String(tenantId));
+  const out = [];
+  for (const it of rawItems) {
+    const name = String(it.name || '').trim();
+    if (!name) continue;
+    let q = Number(it.quantity);
+    if (!Number.isFinite(q) || q < 0) q = 0;
+    const unit = String(it.unit || 'unit').trim() || 'unit';
+    let categoryId;
+    if (it.categoryId != null && mongoose.Types.ObjectId.isValid(String(it.categoryId))) {
+      categoryId = new mongoose.Types.ObjectId(String(it.categoryId));
+    }
+    let inventoryId;
+    if (it.inventoryId != null && mongoose.Types.ObjectId.isValid(String(it.inventoryId))) {
+      const inv = await Inventory.findOne({
+        _id: new mongoose.Types.ObjectId(String(it.inventoryId)),
+        tenantId: tid,
+      })
+        .select('_id')
+        .lean();
+      if (!inv) {
+        throw new ApiError(400, `Inventory item not found for line "${name}"`);
+      }
+      inventoryId = inv._id;
+    }
+    const row = { name, quantity: q, unit };
+    if (categoryId) row.categoryId = categoryId;
+    if (inventoryId) row.inventoryId = inventoryId;
+    out.push(row);
+  }
+  return out;
+}
+
 exports.list = asyncHandler(async (req, res) => {
   const { status, employeeId, customerId, page = 1, limit = 20 } = req.query;
   const filter = { tenantId: req.tenantId };
@@ -142,6 +186,12 @@ exports.create = asyncHandler(async (req, res) => {
       req.tenantId
     );
   }
+
+  const sanitizedItems = Array.isArray(req.body.items)
+    ? await sanitizeWorkOrderItems(req.body.items, req.tenantId)
+    : [];
+  body.items = sanitizedItems.length > 0 ? sanitizedItems : undefined;
+
   await syncWorkOrderCounterFromDb(req.tenantId);
   const counter = await WorkOrderCounter.findOneAndUpdate(
     { tenantId: req.tenantId },
@@ -149,7 +199,17 @@ exports.create = asyncHandler(async (req, res) => {
     { new: true, upsert: true }
   );
   body.workOrderNumber = counter.seq;
-  const doc = await WorkOrder.create(body);
+
+  await applyWorkOrderInventoryDelta(req.tenantId, [], sanitizedItems);
+
+  let doc;
+  try {
+    doc = await WorkOrder.create(body);
+  } catch (e) {
+    await applyWorkOrderInventoryDelta(req.tenantId, sanitizedItems, []).catch(() => {});
+    throw e;
+  }
+
   let populated = await WorkOrder.findById(doc._id)
     .populate('customerId', 'name email phone')
     .populate('assignedEmployeeIds', 'name employeeId email department')
@@ -160,6 +220,9 @@ exports.create = asyncHandler(async (req, res) => {
 });
 
 exports.update = asyncHandler(async (req, res) => {
+  const existing = await WorkOrder.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
+  if (!existing) throw new ApiError(404, 'Work order not found');
+
   const body = { ...req.body };
   delete body.workOrderNumber;
   if (!body.customerId || !String(body.customerId).trim()) {
@@ -171,12 +234,33 @@ exports.update = asyncHandler(async (req, res) => {
       req.tenantId
     );
   }
-  const updated = await WorkOrder.findOneAndUpdate(
-    { _id: req.params.id, tenantId: req.tenantId },
-    body,
-    { new: true, runValidators: true }
-  );
-  if (!updated) throw new ApiError(404, 'Work order not found');
+
+  let sanitizedItems = null;
+  if (Object.prototype.hasOwnProperty.call(req.body, 'items')) {
+    sanitizedItems = await sanitizeWorkOrderItems(req.body.items, req.tenantId);
+    await applyWorkOrderInventoryDelta(req.tenantId, existing.items || [], sanitizedItems);
+    body.items = sanitizedItems;
+  }
+
+  let updated;
+  try {
+    updated = await WorkOrder.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
+      body,
+      { new: true, runValidators: true }
+    );
+  } catch (e) {
+    if (sanitizedItems !== null) {
+      await applyWorkOrderInventoryDelta(req.tenantId, sanitizedItems, existing.items || []).catch(() => {});
+    }
+    throw e;
+  }
+  if (!updated) {
+    if (sanitizedItems !== null) {
+      await applyWorkOrderInventoryDelta(req.tenantId, sanitizedItems, existing.items || []).catch(() => {});
+    }
+    throw new ApiError(404, 'Work order not found');
+  }
   const doc = await WorkOrder.findById(updated._id)
     .populate('customerId', 'name email phone')
     .populate('assignedEmployeeIds', 'name employeeId email department')
@@ -186,6 +270,9 @@ exports.update = asyncHandler(async (req, res) => {
 });
 
 exports.remove = asyncHandler(async (req, res) => {
+  const existing = await WorkOrder.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
+  if (!existing) throw new ApiError(404, 'Work order not found');
+  await applyWorkOrderInventoryDelta(req.tenantId, existing.items || [], []);
   const result = await WorkOrder.deleteOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!result.deletedCount) throw new ApiError(404, 'Work order not found');
   res.json({ success: true, message: 'Deleted' });

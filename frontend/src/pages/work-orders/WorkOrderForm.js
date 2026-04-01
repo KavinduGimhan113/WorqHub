@@ -30,7 +30,13 @@ const PRIORITY_OPTIONS = [
   { value: 'high', label: 'High' },
 ];
 
-const initialItem = () => ({ name: '', categoryId: '', quantity: '', unit: 'unit' });
+const initialItem = () => ({
+  name: '',
+  categoryId: '',
+  inventoryId: '',
+  quantity: '',
+  unit: 'unit',
+});
 
 function inventoryRowCategoryId(inv) {
   if (inv?.categoryId == null) return '';
@@ -141,6 +147,12 @@ export default function WorkOrderForm() {
                       : i.categoryId
                         ? String(i.categoryId)
                         : '',
+                  inventoryId:
+                    typeof i.inventoryId === 'object' && i.inventoryId?._id
+                      ? String(i.inventoryId._id)
+                      : i.inventoryId
+                        ? String(i.inventoryId)
+                        : '',
                   quantity: i.quantity ?? '',
                   unit: i.unit ?? 'unit',
                 }))
@@ -180,14 +192,21 @@ export default function WorkOrderForm() {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) =>
-        i === index ? { ...item, categoryId, name: '', unit: item.unit || 'unit' } : item
+        i === index
+          ? { ...item, categoryId, name: '', inventoryId: '', unit: item.unit || 'unit' }
+          : item
       ),
     }));
   };
 
   const handleItemInventoryChange = (index, inventoryId) => {
     if (!inventoryId) {
-      updateItem(index, 'name', '');
+      setForm((prev) => ({
+        ...prev,
+        items: prev.items.map((item, i) =>
+          i === index ? { ...item, name: '', inventoryId: '' } : item
+        ),
+      }));
       return;
     }
     const inv = inventoryItems.find((x) => String(x._id) === String(inventoryId));
@@ -202,6 +221,7 @@ export default function WorkOrderForm() {
               ...item,
               name: String(inv.name || '').trim(),
               categoryId: cid,
+              inventoryId: String(inv._id),
               unit,
             }
           : item
@@ -246,6 +266,7 @@ export default function WorkOrderForm() {
         .map((i) => ({
           name: i.name.trim(),
           categoryId: i.categoryId || undefined,
+          inventoryId: i.inventoryId || undefined,
           quantity: Number(i.quantity) || 0,
           unit: i.unit || 'unit',
         })),
@@ -463,13 +484,16 @@ export default function WorkOrderForm() {
         <div className="form-section">
           <h3 className="form-section-title">Items (optional)</h3>
           <p className="form-hint work-order-items-hint">
-            Choose a category, then pick an inventory item. Item choices appear after a category is selected.
+            Choose a category, then pick an inventory item. Saving deducts quantity from inventory; if there is not
+            enough stock, the work order cannot be saved.
           </p>
           {form.items.map((item, index) => {
             const rowItems = inventoryItemsForCategory(inventoryItems, item.categoryId);
-            const nameMatch = rowItems.find(
-              (inv) => String(inv.name || '').trim() === String(item.name || '').trim()
-            );
+            const nameMatch = item.inventoryId
+              ? rowItems.find((inv) => String(inv._id) === String(item.inventoryId))
+              : rowItems.find(
+                  (inv) => String(inv.name || '').trim() === String(item.name || '').trim()
+                );
             const inventorySelectValue = nameMatch ? String(nameMatch._id) : '';
             const orphanName =
               item.name &&
@@ -560,6 +584,12 @@ export default function WorkOrderForm() {
                         onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                         style={{ width: 96 }}
                       />
+                      {nameMatch && item.inventoryId ? (
+                        <p className="form-hint work-order-item-stock-hint" style={{ marginTop: '0.35rem' }}>
+                          In stock: {Number(nameMatch.quantity) || 0}{' '}
+                          {nameMatch.unit ? String(nameMatch.unit) : 'units'}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="form-group">
                       <label className="label" htmlFor={`wo-item-unit-${index}`}>
