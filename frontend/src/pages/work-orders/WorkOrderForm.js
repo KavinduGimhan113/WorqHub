@@ -483,10 +483,6 @@ export default function WorkOrderForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Items (optional)</h3>
-          <p className="form-hint work-order-items-hint">
-            Choose a category, then pick an inventory item. Saving deducts quantity from inventory; if there is not
-            enough stock, the work order cannot be saved.
-          </p>
           {form.items.map((item, index) => {
             const rowItems = inventoryItemsForCategory(inventoryItems, item.categoryId);
             const nameMatch = item.inventoryId

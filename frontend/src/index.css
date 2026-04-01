@@ -2098,12 +2098,6 @@ textarea.input {
 }
 
 /* Work order line items: category left, inventory item right */
-.work-order-items-hint {
-  margin: 0 0 1rem;
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-}
-
 .work-order-item-repeatable.repeatable-row {
   align-items: flex-start;
 }
