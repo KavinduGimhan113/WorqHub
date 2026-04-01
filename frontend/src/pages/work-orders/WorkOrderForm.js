@@ -32,6 +32,21 @@ const PRIORITY_OPTIONS = [
 
 const initialItem = () => ({ name: '', categoryId: '', quantity: '', unit: 'unit' });
 
+function inventoryRowCategoryId(inv) {
+  if (inv?.categoryId == null) return '';
+  return typeof inv.categoryId === 'object' && inv.categoryId?._id
+    ? String(inv.categoryId._id)
+    : String(inv.categoryId);
+}
+
+function inventoryItemsForCategory(allItems, categoryId) {
+  if (!categoryId) return [];
+  const cid = String(categoryId);
+  return sortInventoryByWidgetSku(
+    allItems.filter((inv) => inventoryRowCategoryId(inv) === cid)
+  );
+}
+
 export default function WorkOrderForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -161,24 +176,36 @@ export default function WorkOrderForm() {
     }));
   };
 
-  const handleItemNameChange = (index, value) => {
-    const match = inventoryItems.find(
-      (inv) => String(inv.name || '').trim().toLowerCase() === String(value || '').trim().toLowerCase()
-    );
+  const handleItemCategoryChange = (index, categoryId) => {
     setForm((prev) => ({
       ...prev,
-      items: prev.items.map((item, i) => {
-        if (i !== index) return item;
-        // Auto-fill category when selected item matches inventory name.
-        if (!match) return { ...item, name: value };
-        const cid =
-          typeof match.categoryId === 'object' && match.categoryId?._id
-            ? String(match.categoryId._id)
-            : match.categoryId
-              ? String(match.categoryId)
-              : '';
-        return { ...item, name: value, categoryId: cid };
-      }),
+      items: prev.items.map((item, i) =>
+        i === index ? { ...item, categoryId, name: '', unit: item.unit || 'unit' } : item
+      ),
+    }));
+  };
+
+  const handleItemInventoryChange = (index, inventoryId) => {
+    if (!inventoryId) {
+      updateItem(index, 'name', '');
+      return;
+    }
+    const inv = inventoryItems.find((x) => String(x._id) === String(inventoryId));
+    if (!inv) return;
+    const cid = inventoryRowCategoryId(inv);
+    const unit = inv.unit != null && String(inv.unit).trim() ? String(inv.unit).trim() : 'unit';
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              name: String(inv.name || '').trim(),
+              categoryId: cid,
+              unit,
+            }
+          : item
+      ),
     }));
   };
 
@@ -265,7 +292,7 @@ export default function WorkOrderForm() {
         </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="card card-body" style={{ maxWidth: 720 }}>
+      <form onSubmit={handleSubmit} className="card card-body" style={{ maxWidth: 840 }}>
         {error && <div className="form-error" role="alert">{error}</div>}
 
         <div className="form-section">
@@ -435,72 +462,136 @@ export default function WorkOrderForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Items (optional)</h3>
-          {form.items.map((item, index) => (
-            <div key={index} className="repeatable-row">
-              <div className="form-row" style={{ flex: 1, gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder={inventoryItemsLoading ? 'Loading items…' : 'Item name'}
-                  value={item.name}
-                  onChange={(e) => handleItemNameChange(index, e.target.value)}
-                  list="work-order-item-options"
-                />
-                <select
-                  className="input"
-                  value={item.categoryId || ''}
-                  onChange={(e) => updateItem(index, 'categoryId', e.target.value)}
-                  disabled={categoriesLoading || categories.length === 0}
-                  style={{ minWidth: 160 }}
+          <p className="form-hint work-order-items-hint">
+            Choose a category, then pick an inventory item. Item choices appear after a category is selected.
+          </p>
+          {form.items.map((item, index) => {
+            const rowItems = inventoryItemsForCategory(inventoryItems, item.categoryId);
+            const nameMatch = rowItems.find(
+              (inv) => String(inv.name || '').trim() === String(item.name || '').trim()
+            );
+            const inventorySelectValue = nameMatch ? String(nameMatch._id) : '';
+            const orphanName =
+              item.name &&
+              item.categoryId &&
+              !nameMatch &&
+              String(item.name).trim();
+
+            return (
+              <div key={index} className="repeatable-row work-order-item-repeatable">
+                <div className="work-order-item-fields">
+                  <div className="work-order-item-category-item">
+                    <div className="form-group work-order-item-field">
+                      <label className="label" htmlFor={`wo-item-cat-${index}`}>
+                        Category
+                      </label>
+                      <select
+                        id={`wo-item-cat-${index}`}
+                        className="input"
+                        value={item.categoryId || ''}
+                        onChange={(e) => handleItemCategoryChange(index, e.target.value)}
+                        disabled={categoriesLoading || categories.length === 0}
+                      >
+                        <option value="">
+                          {categoriesLoading
+                            ? 'Loading categories…'
+                            : categories.length
+                              ? 'Select category'
+                              : 'No categories'}
+                        </option>
+                        {categories.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group work-order-item-field">
+                      <label className="label" htmlFor={`wo-item-inv-${index}`}>
+                        Item
+                      </label>
+                      <select
+                        id={`wo-item-inv-${index}`}
+                        className="input"
+                        value={inventorySelectValue}
+                        onChange={(e) => handleItemInventoryChange(index, e.target.value)}
+                        disabled={
+                          inventoryItemsLoading ||
+                          !item.categoryId ||
+                          rowItems.length === 0
+                        }
+                      >
+                        <option value="">
+                          {!item.categoryId
+                            ? 'Select category first'
+                            : inventoryItemsLoading
+                              ? 'Loading items…'
+                              : rowItems.length === 0
+                                ? 'No items in this category'
+                                : 'Select item'}
+                        </option>
+                        {rowItems.map((inv) => (
+                          <option key={inv._id} value={String(inv._id)}>
+                            {inv.sku ? `${inv.sku} · ` : ''}
+                            {inv.name}
+                          </option>
+                        ))}
+                      </select>
+                      {orphanName ? (
+                        <p className="form-hint work-order-item-orphan-hint" role="status">
+                          Saved line still references “{String(item.name).trim()}”. Pick an item above or change
+                          category to replace it.
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="form-row work-order-item-qty-row">
+                    <div className="form-group">
+                      <label className="label" htmlFor={`wo-item-qty-${index}`}>
+                        Qty
+                      </label>
+                      <input
+                        id={`wo-item-qty-${index}`}
+                        type="number"
+                        className="input"
+                        placeholder="Qty"
+                        min={0}
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                        style={{ width: 96 }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="label" htmlFor={`wo-item-unit-${index}`}>
+                        Unit
+                      </label>
+                      <input
+                        id={`wo-item-unit-${index}`}
+                        type="text"
+                        className="input"
+                        placeholder="Unit"
+                        value={item.unit}
+                        onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                        style={{ width: 96 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => removeItem(index)}
+                  disabled={form.items.length <= 1}
+                  aria-label="Remove item"
                 >
-                  <option value="">
-                    {categoriesLoading ? 'Loading categories…' : categories.length ? 'Select category' : 'No categories'}
-                  </option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  className="input"
-                  placeholder="Qty"
-                  min={0}
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                  style={{ width: 80 }}
-                />
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Unit"
-                  value={item.unit}
-                  onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                  style={{ width: 80 }}
-                />
+                  Remove
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => removeItem(index)}
-                disabled={form.items.length <= 1}
-                aria-label="Remove item"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+            );
+          })}
           <button type="button" className="btn btn-secondary repeatable-add" onClick={addItem}>
             + Add item
           </button>
-          {inventoryItems.length > 0 && (
-            <datalist id="work-order-item-options">
-              {inventoryItems.map((inv) => (
-                <option key={inv._id} value={inv.name} />
-              ))}
-            </datalist>
-          )}
         </div>
 
         <div className="form-actions">
