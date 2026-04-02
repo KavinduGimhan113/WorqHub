@@ -6,22 +6,32 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-/** Full-color mark: use on light sidebar. */
-import logoForLightSidebar from '../../assets/l_black.svg';
-/** Simplified light-on-dark wordmark for dark sidebar. */
-import logoForDarkSidebar from '../../assets/l_white.svg';
 import { showExpensesInUi } from '../../config/features';
+import logoOrange from '../../assets/orange.svg';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
-  { to: '/work-orders', label: 'Work Orders', end: false, icon: 'clipboard' },
-  { to: '/customers', label: 'Customers', end: false, icon: 'users' },
-  { to: '/inventory', label: 'Inventory', end: false, icon: 'box' },
-  { to: '/billing', label: 'Billing', end: false, icon: 'dollar' },
-  { to: '/expenses', label: 'Expenses', end: false, icon: 'wallet' },
-  { to: '/employees', label: 'Employees', end: false, icon: 'briefcase' },
-  { to: '/reports', label: 'Reports', end: false, icon: 'chart' },
-];
+function getNavSections(includeExpenses) {
+  return [
+    {
+      heading: 'MAIN',
+      items: [
+        { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
+        { to: '/work-orders', label: 'Work Orders', end: false, icon: 'clipboard' },
+        { to: '/inventory', label: 'Inventory', end: false, icon: 'box' },
+        { to: '/employees', label: 'Team', end: false, icon: 'briefcase' },
+      ],
+    },
+    {
+      heading: 'MANAGE',
+      items: [
+        { to: '/customers', label: 'Customers', end: false, icon: 'users' },
+        { to: '/billing', label: 'Invoices', end: false, icon: 'dollar' },
+        ...(includeExpenses ? [{ to: '/expenses', label: 'Expenses', end: false, icon: 'wallet' }] : []),
+        { to: '/reports', label: 'Reports', end: false, icon: 'chart' },
+        { to: '/settings', label: 'Settings', end: false, icon: 'settings' },
+      ],
+    },
+  ];
+}
 
 const NavIcon = ({ name, className }) => {
   const size = 18;
@@ -80,6 +90,12 @@ const NavIcon = ({ name, className }) => {
         <path d="M18 12a2 2 0 1 0 0 4h4v-4Z" />
       </svg>
     ),
+    settings: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    ),
   };
   return icons[name] || null;
 };
@@ -93,11 +109,11 @@ const pathToTitle = {
   '/inventory': 'Inventory',
   '/inventory/categories/register': 'Register categories',
   '/inventory/new': 'New inventory item',
-  '/billing': 'Billing',
+  '/billing': 'Invoices',
   '/billing/new': 'New invoice',
   '/expenses': 'Expenses',
   '/expenses/new': 'Record expense',
-  '/employees': 'Employees',
+  '/employees': 'Team',
   '/employees/new': 'New employee',
   '/reports': 'Reports',
   '/settings': 'Settings',
@@ -119,7 +135,6 @@ export default function MainLayout() {
   const { toggleTheme, isDark } = useTheme();
   const { pathname } = useLocation();
   const pageTitle = getPageTitle(pathname);
-  const sidebarLogo = isDark ? logoForDarkSidebar : logoForLightSidebar;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -139,26 +154,33 @@ export default function MainLayout() {
   const toggleSidebar = () => setSidebarOpen((o) => !o);
   const closeSidebar = () => setSidebarOpen(false);
 
-  const visibleNavItems = showExpensesInUi ? navItems : navItems.filter((item) => item.to !== '/expenses');
+  const navSections = getNavSections(showExpensesInUi);
 
   return (
     <div className="app-shell">
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={closeSidebar} aria-hidden />
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <img src={sidebarLogo} alt="Worqhub" className="sidebar-logo" />
+          <NavLink to="/" end className="sidebar-logo-link" aria-label="Worqhub home">
+            <img src={logoOrange} alt="" className="sidebar-logo-mark" width={40} height={40} />
+          </NavLink>
         </div>
         <nav className="sidebar-nav">
-          {visibleNavItems.map(({ to, label, end, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <NavIcon name={icon} />
-              {label}
-            </NavLink>
+          {navSections.map((section) => (
+            <div key={section.heading} className="sidebar-nav-section">
+              <div className="sidebar-nav-section-title">{section.heading}</div>
+              {section.items.map(({ to, label, end, icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                >
+                  <NavIcon name={icon} />
+                  {label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-footer">
