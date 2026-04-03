@@ -86,11 +86,6 @@ export default function InventoryCategoriesRegister() {
         </div>
       </div>
 
-      <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
-        Register as many categories as you need. Each name is saved for your organization. They appear in the
-        category dropdown when you create or edit inventory items.
-      </p>
-
       <div className="card card-body" style={{ maxWidth: 520, marginBottom: '1.5rem' }}>
         <h3 className="form-section-title" style={{ marginTop: 0 }}>New category</h3>
         <form onSubmit={handleRegister}>
