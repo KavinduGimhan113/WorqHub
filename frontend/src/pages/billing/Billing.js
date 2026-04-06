@@ -120,11 +120,31 @@ export default function Billing() {
                     <ActionButtons
                       basePath="/billing"
                       id={inv._id}
-                      onDownloadPdf={() =>
+                      onDownloadPdf={() => {
+                        const w = window.open('about:blank', '_blank');
+                        if (!w) {
+                          setError('Could not open a new tab. Check your browser settings.');
+                          return;
+                        }
+                        try {
+                          w.document.write(
+                            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading…</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;color:#64748b">Loading PDF…</body></html>'
+                          );
+                          w.document.close();
+                        } catch {
+                          /* ignore — some environments restrict document access */
+                        }
                         billingApi
-                          .downloadInvoicePdf(inv._id)
-                          .catch((err) => setError(err.message || 'Failed to download PDF'))
-                      }
+                          .downloadInvoicePdf(inv._id, { targetWindow: w })
+                          .catch((err) => {
+                            try {
+                              w.close();
+                            } catch {
+                              /* ignore */
+                            }
+                            setError(err.message || 'Failed to open PDF');
+                          });
+                      }}
                       onDelete={() =>
                         billingApi.deleteInvoice(inv._id)
                           .then(() => setInvoices((prev) => prev.filter((x) => x._id !== inv._id)))

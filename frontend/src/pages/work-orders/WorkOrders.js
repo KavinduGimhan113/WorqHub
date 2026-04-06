@@ -113,9 +113,9 @@ export default function WorkOrders() {
             <div className="empty-state-icon" aria-hidden>📋</div>
             <h3 className="empty-state-title">No work orders yet</h3>
             <p className="empty-state-text">Create your first work order to start tracking jobs.</p>
-            <button type="button" className="btn btn-primary" disabled>
+            <Link to="/work-orders/new" className="btn btn-primary">
               New work order
-            </button>
+            </Link>
           </div>
         ) : (
           <table className="table">

@@ -186,7 +186,10 @@ export default function MainLayout() {
         <div className="sidebar-brand">
           <NavLink to="/" end className="sidebar-logo-link" aria-label="Worqhub home">
             <img src={logoOrange} alt="" className="sidebar-logo-mark" width={40} height={40} />
-            <span className="sidebar-logo-text">Worqhub</span>
+            <span className="sidebar-logo-text">
+              <span className="sidebar-logo-text-worq">Worq</span>
+              <span className="sidebar-logo-text-hub">hub</span>
+            </span>
           </NavLink>
         </div>
         <nav className="sidebar-nav">

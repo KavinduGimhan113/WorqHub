@@ -153,7 +153,14 @@ body {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
+  text-decoration: none;
   transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+a.btn:hover,
+a.btn:focus,
+a.btn:active {
+  text-decoration: none;
 }
 
 .btn:focus-visible {
@@ -327,13 +334,20 @@ textarea.input {
 .sidebar-logo-text {
   font-family: var(--font-sans);
   font-size: 1.125rem;
-  font-weight: 700;
   letter-spacing: -0.02em;
   color: #1f2937;
   white-space: nowrap;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sidebar-logo-text-worq {
+  font-weight: 700;
+}
+
+.sidebar-logo-text-hub {
+  font-weight: 400;
 }
 
 [data-theme="dark"] .sidebar .sidebar-logo-text {

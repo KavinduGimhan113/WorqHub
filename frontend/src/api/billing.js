@@ -18,8 +18,13 @@ function invoiceIdFromArg(id) {
   return String(id).trim();
 }
 
-/** Triggers a browser download of the invoice PDF (same auth as other billing calls). */
-export async function downloadInvoicePdf(id) {
+/**
+ * Fetches the invoice PDF (same auth as other billing calls).
+ * @param {string|object} id Invoice id
+ * @param {{ targetWindow?: Window }} [options] If set, PDF is shown in this tab (open with `window.open('about:blank')` in the same click handler *before* awaiting — avoids popup blockers after async fetch).
+ */
+export async function downloadInvoicePdf(id, options = {}) {
+  const { targetWindow } = options;
   const invoiceId = invoiceIdFromArg(id);
   if (!invoiceId || invoiceId === '[object Object]') throw new Error('Missing invoice id');
 
@@ -64,6 +69,13 @@ export async function downloadInvoicePdf(id) {
   const blob =
     res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
   const url = window.URL.createObjectURL(blob);
+
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.location.href = url;
+    setTimeout(() => window.URL.revokeObjectURL(url), 120_000);
+    return;
+  }
+
   const a = document.createElement('a');
   a.href = url;
   let filename = 'invoice.pdf';
