@@ -73,7 +73,7 @@ function workOrderDisplayNumber(wo) {
   return null;
 }
 
-/** Roll up `items[]` from work orders (name, quantity, unit) for the selected customer. */
+/** Roll up `items[]` from work orders (name, quantity) for the selected customer. */
 function aggregateCustomerWorkOrderItems(workOrders) {
   const map = new Map();
   for (const wo of workOrders || []) {
@@ -82,12 +82,10 @@ function aggregateCustomerWorkOrderItems(workOrders) {
     const ref = woLabel ? `#${woLabel}${woTitle ? ` · ${woTitle}` : ''}` : woTitle || 'Work order';
     for (const it of wo.items || []) {
       const name = (it.name && String(it.name).trim()) || 'Item';
-      const unit = (it.unit && String(it.unit).trim()) || 'unit';
       const qty = Number(it.quantity) || 0;
-      const key = `${name}\0${unit}`;
+      const key = name;
       const prev = map.get(key) || {
         name,
-        unit,
         quantity: 0,
         workOrderRefs: [],
       };
@@ -463,18 +461,16 @@ export default function InvoiceForm() {
                           <tr>
                             <th>Item</th>
                             <th style={{ textAlign: 'right', width: '5rem' }}>Qty</th>
-                            <th style={{ width: '5rem' }}>Unit</th>
                             <th>Work orders</th>
                           </tr>
                         </thead>
                         <tbody>
                           {customerWoItems.map((row) => (
-                            <tr key={`${row.name}\0${row.unit}`}>
+                            <tr key={row.name}>
                               <td>{row.name}</td>
                               <td style={{ textAlign: 'right' }}>
                                 {row.quantity % 1 ? row.quantity.toFixed(2) : row.quantity}
                               </td>
-                              <td>{row.unit}</td>
                               <td className="invoice-form-wo-refs">
                                 {row.workOrderRefs.join('; ')}
                               </td>

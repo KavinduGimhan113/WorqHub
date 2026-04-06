@@ -10,7 +10,6 @@ const inventorySchema = new mongoose.Schema(
     sku: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     quantity: { type: Number, required: true, default: 0, min: 0 },
-    unit: { type: String, default: 'unit' },
     minQuantity: { type: Number, default: 0 },
     location: { type: String, trim: true },
   },

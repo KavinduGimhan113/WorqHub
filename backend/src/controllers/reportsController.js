@@ -25,6 +25,21 @@ function fmtIso(d) {
   return Number.isNaN(t) ? '' : new Date(d).toISOString();
 }
 
+/** Sort by work order # (001, 002, …), then createdAt. Rows without a number sort last. */
+function sortWorkOrdersByNumber(list) {
+  if (!Array.isArray(list)) return list;
+  return [...list].sort((a, b) => {
+    const na = Number(a.workOrderNumber);
+    const nb = Number(b.workOrderNumber);
+    const fa = Number.isFinite(na);
+    const fb = Number.isFinite(nb);
+    if (fa && fb && na !== nb) return na - nb;
+    if (fa && !fb) return -1;
+    if (!fa && fb) return 1;
+    return new Date(a.createdAt) - new Date(b.createdAt);
+  });
+}
+
 function tenantObjectId(tenantId) {
   if (tenantId == null || !mongoose.isValidObjectId(tenantId)) {
     throw new ApiError(403, 'Tenant context required');
@@ -130,10 +145,11 @@ exports.exportExcel = asyncHandler(async (req, res) => {
   const monthTag = start.toISOString().slice(0, 7);
 
   if (dataset === 'work-orders-this-month') {
-    const list = await WorkOrder.find({ tenantId, createdAt: { $gte: start, $lt: end } })
-      .populate('customerId', 'name email phone')
-      .sort({ createdAt: -1 })
-      .lean();
+    const list = sortWorkOrdersByNumber(
+      await WorkOrder.find({ tenantId, createdAt: { $gte: start, $lt: end } })
+        .populate('customerId', 'name email phone')
+        .lean()
+    );
     const rows = list.map((wo) => ({
       'Work order #': wo.workOrderNumber ?? '',
       Title: wo.title ?? '',
@@ -191,10 +207,9 @@ exports.exportExcel = asyncHandler(async (req, res) => {
   }
 
   if (dataset === 'work-orders-all') {
-    const list = await WorkOrder.find({ tenantId })
-      .populate('customerId', 'name email phone')
-      .sort({ createdAt: -1 })
-      .lean();
+    const list = sortWorkOrdersByNumber(
+      await WorkOrder.find({ tenantId }).populate('customerId', 'name email phone').lean()
+    );
     const rows = list.map((wo) => ({
       'Work order #': wo.workOrderNumber ?? '',
       Title: wo.title ?? '',
@@ -230,7 +245,6 @@ exports.exportExcel = asyncHandler(async (req, res) => {
       SKU: i.sku ?? '',
       Name: i.name ?? '',
       Quantity: i.quantity ?? 0,
-      Unit: i.unit ?? '',
       'Min quantity': i.minQuantity ?? '',
       Location: i.location ?? '',
       Category: i.categoryId?.name ?? '',

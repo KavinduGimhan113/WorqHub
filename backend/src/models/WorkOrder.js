@@ -29,7 +29,6 @@ const workOrderSchema = new mongoose.Schema(
         /** When set, quantity changes adjust Inventory.quantity for this tenant. */
         inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory' },
         quantity: Number,
-        unit: String,
       },
     ],
   },

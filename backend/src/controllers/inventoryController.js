@@ -46,7 +46,7 @@ exports.lowStock = asyncHandler(async (req, res) => {
     Inventory.find(filter)
       .sort({ quantity: 1, name: 1 })
       .limit(limit)
-      .select('sku name quantity unit')
+      .select('sku name quantity')
       .lean(),
   ]);
 

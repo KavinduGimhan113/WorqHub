@@ -222,7 +222,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      workOrdersApi.list({ limit: 50 }).catch(() => ({ data: [] })),
+      workOrdersApi.list({ limit: 50, order: 'recent' }).catch(() => ({ data: [] })),
       customersApi.list().catch(() => ({ data: [] })),
       billingApi.listInvoices().catch(() => ({ data: [] })),
       inventoryApi.lowStock({ threshold: LOW_STOCK_THRESHOLD, limit: 15 }).catch(() => ({ _failed: true })),
@@ -502,7 +502,7 @@ export default function Dashboard() {
                       <span className="dashboard-low-stock-name">{row.name}</span>
                       <span className="dashboard-low-stock-meta">
                         {row.sku ? `${row.sku} · ` : ''}
-                        {row.quantity == null ? 0 : Number(row.quantity)} {row.unit || 'unit'}
+                        {row.quantity == null ? 0 : Number(row.quantity)} in stock
                       </span>
                     </li>
                   ))}

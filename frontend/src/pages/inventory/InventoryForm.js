@@ -5,8 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import * as inventoryApi from '../../api/inventory';
 
-const UNIT_OPTIONS = ['unit', 'each', 'box', 'kg', 'lb', 'm', 'ft', 'hour', 'day'];
-
 export default function InventoryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -23,7 +21,6 @@ export default function InventoryForm() {
     sku: '',
     name: '',
     quantity: 0,
-    unit: 'unit',
     minQuantity: 0,
     location: '',
   });
@@ -66,7 +63,6 @@ export default function InventoryForm() {
             sku: data.sku ?? '',
             name: data.name ?? '',
             quantity: data.quantity ?? 0,
-            unit: data.unit ?? 'unit',
             minQuantity: data.minQuantity ?? 0,
             location: data.location ?? '',
           });
@@ -95,7 +91,6 @@ export default function InventoryForm() {
       name: form.name.trim(),
       categoryId: form.categoryId.trim() || null,
       quantity: Number(form.quantity) || 0,
-      unit: form.unit || 'unit',
       minQuantity: Number(form.minQuantity) || 0,
       location: form.location.trim() || undefined,
     };
@@ -203,19 +198,6 @@ export default function InventoryForm() {
                 value={form.quantity}
                 onChange={(e) => update('quantity', e.target.value)}
               />
-            </div>
-            <div className="form-group">
-              <label className="label" htmlFor="unit">Unit</label>
-              <select
-                id="unit"
-                className="input"
-                value={form.unit}
-                onChange={(e) => update('unit', e.target.value)}
-              >
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
             </div>
             <div className="form-group">
               <label className="label" htmlFor="minQuantity">Min. quantity (reorder)</label>

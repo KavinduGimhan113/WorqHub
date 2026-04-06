@@ -110,7 +110,6 @@ async function sanitizeWorkOrderItems(rawItems, tenantId) {
     if (!name) continue;
     let q = Number(it.quantity);
     if (!Number.isFinite(q) || q < 0) q = 0;
-    const unit = String(it.unit || 'unit').trim() || 'unit';
     let categoryId;
     if (it.categoryId != null && mongoose.Types.ObjectId.isValid(String(it.categoryId))) {
       categoryId = new mongoose.Types.ObjectId(String(it.categoryId));
@@ -128,7 +127,7 @@ async function sanitizeWorkOrderItems(rawItems, tenantId) {
       }
       inventoryId = inv._id;
     }
-    const row = { name, quantity: q, unit };
+    const row = { name, quantity: q };
     if (categoryId) row.categoryId = categoryId;
     if (inventoryId) row.inventoryId = inventoryId;
     out.push(row);
@@ -137,7 +136,7 @@ async function sanitizeWorkOrderItems(rawItems, tenantId) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  const { status, employeeId, customerId, page = 1, limit = 20 } = req.query;
+  const { status, employeeId, customerId, page = 1, limit = 20, order } = req.query;
   const filter = { tenantId: req.tenantId };
   if (status) filter.status = status;
   if (employeeId && mongoose.Types.ObjectId.isValid(employeeId)) {
@@ -150,16 +149,51 @@ exports.list = asyncHandler(async (req, res) => {
   if (!Number.isFinite(lim) || lim < 1) lim = 20;
   if (lim > 200) lim = 200;
   const skip = (Number(page) - 1) * lim;
-  const [items, total] = await Promise.all([
-    WorkOrder.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(lim)
-      .populate('customerId', 'name email phone')
-      .populate('assignedEmployeeIds', 'name employeeId email department')
-      .lean(),
+
+  /** Dashboard / analytics: most recently created first. Main list: 001, 002, 003… by workOrderNumber. */
+  const orderRecent = String(order || '').toLowerCase() === 'recent';
+  if (orderRecent) {
+    const [items, total] = await Promise.all([
+      WorkOrder.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .populate('customerId', 'name email phone')
+        .populate('assignedEmployeeIds', 'name employeeId email department')
+        .lean(),
+      WorkOrder.countDocuments(filter),
+    ]);
+    await attachCustomerDetails(items, req.tenantId);
+    res.json({ success: true, data: items, total, page: Number(page), limit: lim });
+    return;
+  }
+
+  const [idRows, total] = await Promise.all([
+    WorkOrder.aggregate([
+      { $match: filter },
+      {
+        $addFields: {
+          _sortWo: { $ifNull: ['$workOrderNumber', 2147483647] },
+        },
+      },
+      { $sort: { _sortWo: 1, createdAt: 1 } },
+      { $skip: skip },
+      { $limit: lim },
+      { $project: { _id: 1 } },
+    ]),
     WorkOrder.countDocuments(filter),
   ]);
+  const ids = idRows.map((r) => r._id);
+  let items = [];
+  if (ids.length > 0) {
+    const rows = await WorkOrder.find({ _id: { $in: ids } })
+      .populate('customerId', 'name email phone')
+      .populate('assignedEmployeeIds', 'name employeeId email department')
+      .lean();
+    const rank = new Map(ids.map((id, i) => [String(id), i]));
+    rows.sort((a, b) => rank.get(String(a._id)) - rank.get(String(b._id)));
+    items = rows;
+  }
   await attachCustomerDetails(items, req.tenantId);
   res.json({ success: true, data: items, total, page: Number(page), limit: lim });
 });

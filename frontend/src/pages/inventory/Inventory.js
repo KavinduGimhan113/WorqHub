@@ -79,7 +79,6 @@ export default function Inventory() {
                 <th>Name</th>
                 <th>Category</th>
                 <th>Quantity</th>
-                <th>Unit</th>
                 <th>Min Qty</th>
                 <th>Location</th>
                 <th style={{ width: 180 }}>Actions</th>
@@ -96,7 +95,6 @@ export default function Inventory() {
                       : '—'}
                   </td>
                   <td>{item.quantity}</td>
-                  <td>{item.unit || 'unit'}</td>
                   <td>{item.minQuantity ?? '—'}</td>
                   <td>{item.location || '—'}</td>
                   <td>

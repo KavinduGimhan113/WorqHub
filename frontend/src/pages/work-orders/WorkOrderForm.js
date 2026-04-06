@@ -35,7 +35,6 @@ const initialItem = () => ({
   categoryId: '',
   inventoryId: '',
   quantity: '',
-  unit: 'unit',
 });
 
 function inventoryRowCategoryId(inv) {
@@ -154,7 +153,6 @@ export default function WorkOrderForm() {
                         ? String(i.inventoryId)
                         : '',
                   quantity: i.quantity ?? '',
-                  unit: i.unit ?? 'unit',
                 }))
               : [initialItem()],
           });
@@ -193,7 +191,7 @@ export default function WorkOrderForm() {
       ...prev,
       items: prev.items.map((item, i) =>
         i === index
-          ? { ...item, categoryId, name: '', inventoryId: '', unit: item.unit || 'unit' }
+          ? { ...item, categoryId, name: '', inventoryId: '' }
           : item
       ),
     }));
@@ -212,7 +210,6 @@ export default function WorkOrderForm() {
     const inv = inventoryItems.find((x) => String(x._id) === String(inventoryId));
     if (!inv) return;
     const cid = inventoryRowCategoryId(inv);
-    const unit = inv.unit != null && String(inv.unit).trim() ? String(inv.unit).trim() : 'unit';
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) =>
@@ -222,7 +219,6 @@ export default function WorkOrderForm() {
               name: String(inv.name || '').trim(),
               categoryId: cid,
               inventoryId: String(inv._id),
-              unit,
             }
           : item
       ),
@@ -268,7 +264,6 @@ export default function WorkOrderForm() {
           categoryId: i.categoryId || undefined,
           inventoryId: i.inventoryId || undefined,
           quantity: Number(i.quantity) || 0,
-          unit: i.unit || 'unit',
         })),
       assignedEmployeeIds: form.assignedEmployeeIds,
     };
@@ -582,24 +577,9 @@ export default function WorkOrderForm() {
                       />
                       {nameMatch && item.inventoryId ? (
                         <p className="form-hint work-order-item-stock-hint" style={{ marginTop: '0.35rem' }}>
-                          In stock: {Number(nameMatch.quantity) || 0}{' '}
-                          {nameMatch.unit ? String(nameMatch.unit) : 'units'}
+                          In stock: {Number(nameMatch.quantity) || 0}
                         </p>
                       ) : null}
-                    </div>
-                    <div className="form-group">
-                      <label className="label" htmlFor={`wo-item-unit-${index}`}>
-                        Unit
-                      </label>
-                      <input
-                        id={`wo-item-unit-${index}`}
-                        type="text"
-                        className="input"
-                        placeholder="Unit"
-                        value={item.unit}
-                        onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                        style={{ width: 96 }}
-                      />
                     </div>
                   </div>
                 </div>
