@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 /**
  * Tenant context from auth. tenantId comes from the session user; tenantName is hydrated via /auth/me when missing.
  */
@@ -22,3 +23,14 @@ export function useTenant() {
 
   return { tenantId, tenantName: user?.tenantName || '' };
 }
+=======
+/**
+ * Tenant context from auth. tenantId is set from JWT after login.
+ */
+import { useAuth } from '../context/AuthContext';
+
+export function useTenant() {
+  const { tenantId, user } = useAuth();
+  return { tenantId, tenantName: user?.tenantId ? undefined : undefined };
+}
+>>>>>>> Stashed changes
