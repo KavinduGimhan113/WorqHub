@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 /**
  * Reports API. All calls include JWT; backend scopes by tenantId.
  */
@@ -119,12 +118,3 @@ export async function downloadReportExcel(dataset) {
   document.body.removeChild(a);
   URL.revokeObjectURL(objectUrl);
 }
-=======
-/**
- * Reports API. All calls include JWT; backend scopes by tenantId.
- */
-import client from './client';
-
-export const dashboard = () => client.get('/reports/dashboard').then((res) => res.data);
-export const workOrderStats = (params) => client.get('/reports/work-orders', { params }).then((res) => res.data);
->>>>>>> Stashed changes
