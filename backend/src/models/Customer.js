@@ -6,6 +6,8 @@ const mongoose = require('mongoose');
 const customerSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    /** Stable display id per tenant: CUS-001, CUS-002, … */
+    customerCode: { type: String, trim: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, trim: true },
     phone: { type: String, trim: true },
@@ -17,5 +19,6 @@ const customerSchema = new mongoose.Schema(
 );
 
 customerSchema.index({ tenantId: 1, name: 1 });
+customerSchema.index({ tenantId: 1, customerCode: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Customer', customerSchema);

@@ -19,7 +19,11 @@ exports.register = asyncHandler(async (req, res) => {
   const user = await User.create({ tenantId, email: normalizedEmail, passwordHash, name, role: role || 'Staff' });
   const token = authService.generateToken(user);
   const { passwordHash: _, ...safe } = user.toObject();
-  res.status(201).json({ success: true, user: safe, token });
+  res.status(201).json({
+    success: true,
+    user: { ...safe, tenantName: tenant?.name || '' },
+    token,
+  });
 });
 
 exports.login = asyncHandler(async (req, res) => {
@@ -32,5 +36,9 @@ exports.login = asyncHandler(async (req, res) => {
 exports.me = asyncHandler(async (req, res) => {
   const user = await User.findById(req.userId).select('-passwordHash').lean();
   if (!user) throw new ApiError(404, 'User not found');
-  res.json({ success: true, user });
+  const tenant = await Tenant.findById(user.tenantId).select('name').lean();
+  res.json({
+    success: true,
+    user: { ...user, tenantName: tenant?.name || '' },
+  });
 });

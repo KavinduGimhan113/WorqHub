@@ -1,22 +1,45 @@
 /**
  * Main layout: sidebar + header. Use for tenant-scoped pages.
- * Mobile: sidebar collapses to hamburger overlay.
+ * Viewports under 768px: sidebar is a drawer (hamburger). 768px and up: persistent sidebar.
  */
-import React, { useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import logo from '../../assets/l_white.png';
+import { showExpensesInUi } from '../../config/features';
+import logoOrange from '../../assets/orange.svg';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
-  { to: '/work-orders', label: 'Work Orders', end: false, icon: 'clipboard' },
-  { to: '/customers', label: 'Customers', end: false, icon: 'users' },
-  { to: '/inventory', label: 'Inventory', end: false, icon: 'box' },
-  { to: '/billing', label: 'Billing', end: false, icon: 'dollar' },
-  { to: '/employees', label: 'Employees', end: false, icon: 'briefcase' },
-  { to: '/reports', label: 'Reports', end: false, icon: 'chart' },
-];
+function getNavSections(includeExpenses) {
+  return [
+    {
+      heading: 'MAIN',
+      items: [
+        { to: '/', label: 'Dashboard', end: true, icon: 'dashboard' },
+        { to: '/work-orders', label: 'Work Orders', end: false, icon: 'clipboard' },
+        {
+          to: '/inventory',
+          label: 'Inventory',
+          icon: 'box',
+          isActive: (p) =>
+            p === '/inventory' ||
+            p === '/inventory/new' ||
+            /^\/inventory\/[^/]+\/edit/.test(p),
+          children: [{ to: '/inventory/categories/register', label: 'Category registration', end: true, icon: 'tag' }],
+        },
+        { to: '/employees', label: 'Employee', end: false, icon: 'briefcase' },
+      ],
+    },
+    {
+      heading: 'MANAGE',
+      items: [
+        { to: '/customers', label: 'Customers', end: false, icon: 'users' },
+        { to: '/billing', label: 'Invoices', end: false, icon: 'dollar' },
+        ...(includeExpenses ? [{ to: '/expenses', label: 'Expenses', end: false, icon: 'wallet' }] : []),
+        { to: '/reports', label: 'Reports', end: false, icon: 'chart' },
+      ],
+    },
+  ];
+}
 
 const NavIcon = ({ name, className }) => {
   const size = 18;
@@ -49,6 +72,12 @@ const NavIcon = ({ name, className }) => {
         <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
       </svg>
     ),
+    tag: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    ),
     dollar: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -68,6 +97,13 @@ const NavIcon = ({ name, className }) => {
         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
       </svg>
     ),
+    wallet: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+        <path d="M18 12a2 2 0 1 0 0 4h4v-4Z" />
+      </svg>
+    ),
   };
   return icons[name] || null;
 };
@@ -79,10 +115,13 @@ const pathToTitle = {
   '/customers': 'Customers',
   '/customers/new': 'New customer',
   '/inventory': 'Inventory',
+  '/inventory/categories/register': 'Category registration',
   '/inventory/new': 'New inventory item',
-  '/billing': 'Billing',
+  '/billing': 'Invoices',
   '/billing/new': 'New invoice',
-  '/employees': 'Employees',
+  '/expenses': 'Expenses',
+  '/expenses/new': 'Record expense',
+  '/employees': 'Employee',
   '/employees/new': 'New employee',
   '/reports': 'Reports',
   '/settings': 'Settings',
@@ -94,6 +133,7 @@ function getPageTitle(pathname) {
   if (/^\/customers\/[^/]+\/edit/.test(pathname)) return 'Edit customer';
   if (/^\/inventory\/[^/]+\/edit/.test(pathname)) return 'Edit inventory item';
   if (/^\/employees\/[^/]+\/edit/.test(pathname)) return 'Edit employee';
+  if (/^\/expenses\/[^/]+\/edit/.test(pathname)) return 'Edit expense';
   const base = pathname.split('/')[1];
   return pathToTitle[`/${base}`] || 'Dashboard';
 }
@@ -104,32 +144,128 @@ export default function MainLayout() {
   const { pathname } = useLocation();
   const pageTitle = getPageTitle(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  /** Which parent nav `to` has its submenu open (e.g. Inventory dropdown). */
+  const [sidebarDropdownKey, setSidebarDropdownKey] = useState(null);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (pathname.startsWith('/inventory/categories')) {
+      setSidebarDropdownKey('/inventory');
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const closeOnDesktop = () => {
+      if (mq.matches) setSidebarOpen(false);
+    };
+    mq.addEventListener('change', closeOnDesktop);
+    closeOnDesktop();
+    return () => mq.removeEventListener('change', closeOnDesktop);
+  }, []);
+
   const toggleSidebar = () => setSidebarOpen((o) => !o);
   const closeSidebar = () => setSidebarOpen(false);
+
+  const navSections = getNavSections(showExpensesInUi);
 
   return (
     <div className="app-shell">
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={closeSidebar} aria-hidden />
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <img src={logo} alt="Worqhub" className="sidebar-logo" />
+          <NavLink to="/" end className="sidebar-logo-link" aria-label="Worqhub home">
+            <img src={logoOrange} alt="" className="sidebar-logo-mark" width={40} height={40} />
+            <span className="sidebar-logo-text">
+              <span className="sidebar-logo-text-worq">Worq</span>
+              <span className="sidebar-logo-text-hub">hub</span>
+            </span>
+          </NavLink>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map(({ to, label, end, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <NavIcon name={icon} />
-              {label}
-            </NavLink>
+          {navSections.map((section) => (
+            <div key={section.heading} className="sidebar-nav-section">
+              <div className="sidebar-nav-section-title">{section.heading}</div>
+              {section.items.map(({ to, label, end, icon, children, isActive: isActiveFn }) => {
+                if (children?.length) {
+                  const dropdownOpen = sidebarDropdownKey === to;
+                  const panelId = `sidebar-dd-${to.replace(/^\//, '').replace(/\//g, '-')}`;
+                  return (
+                    <div key={to} className="sidebar-nav-dropdown">
+                      <div className="sidebar-nav-dropdown-head">
+                        <NavLink
+                          to={to}
+                          end={end}
+                          className={({ isActive }) =>
+                            `sidebar-link sidebar-link-dropdown-main ${(typeof isActiveFn === 'function' ? isActiveFn(pathname) : isActive) ? 'active' : ''}`
+                          }
+                        >
+                          <NavIcon name={icon} />
+                          {label}
+                        </NavLink>
+                        <button
+                          type="button"
+                          className="sidebar-nav-dropdown-toggle"
+                          aria-expanded={dropdownOpen}
+                          aria-controls={panelId}
+                          aria-label={`${label} submenu`}
+                          onClick={() => setSidebarDropdownKey((k) => (k === to ? null : to))}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`sidebar-nav-dropdown-chevron ${dropdownOpen ? 'is-open' : ''}`}
+                            aria-hidden
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      </div>
+                      {dropdownOpen && (
+                        <div id={panelId} className="sidebar-nav-dropdown-panel" role="group">
+                          {children.map((sub) => (
+                            <NavLink
+                              key={sub.to}
+                              to={sub.to}
+                              end={sub.end}
+                              className={({ isActive }) =>
+                                `sidebar-link sidebar-link-sub sidebar-link-dropdown-item ${isActive ? 'active' : ''}`
+                              }
+                            >
+                              <NavIcon name={sub.icon} />
+                              {sub.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <Fragment key={to}>
+                    <NavLink
+                      to={to}
+                      end={end}
+                      className={({ isActive }) =>
+                        `sidebar-link ${(typeof isActiveFn === 'function' ? isActiveFn(pathname) : isActive) ? 'active' : ''}`
+                      }
+                    >
+                      <NavIcon name={icon} />
+                      {label}
+                    </NavLink>
+                  </Fragment>
+                );
+              })}
+            </div>
           ))}
         </nav>
         <div className="sidebar-footer">

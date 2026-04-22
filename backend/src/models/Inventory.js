@@ -6,10 +6,10 @@ const mongoose = require('mongoose');
 const inventorySchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryCategory' },
     sku: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     quantity: { type: Number, required: true, default: 0, min: 0 },
-    unit: { type: String, default: 'unit' },
     minQuantity: { type: Number, default: 0 },
     location: { type: String, trim: true },
   },

@@ -14,6 +14,17 @@ const statusClass = {
   cancelled: 'badge-cancelled',
 };
 
+function invoiceCustomerLabel(inv) {
+  const c = inv?.customerId;
+  if (c && typeof c === 'object' && c.name) return String(c.name).trim() || '—';
+  return '—';
+}
+
+function formatMoneyLkr(n) {
+  const x = Number(n) || 0;
+  return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function Billing() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,14 +89,14 @@ export default function Billing() {
                 <th>Status</th>
                 <th>Due date</th>
                 <th>Amount</th>
-                <th style={{ width: 180 }}>Actions</th>
+                <th style={{ width: 240 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => (
                 <tr key={inv._id}>
                   <td>{inv.number}</td>
-                  <td>{inv.customerId ? '—' : '—'}</td>
+                  <td>{invoiceCustomerLabel(inv)}</td>
                   <td>
                     <span className={`badge ${statusClass[inv.status] || 'badge-draft'}`}>
                       {inv.status || 'draft'}
@@ -96,11 +107,44 @@ export default function Billing() {
                       ? new Date(inv.dueDate).toLocaleDateString()
                       : '—'}
                   </td>
-                  <td>{inv.total != null ? `$${Number(inv.total).toFixed(2)}` : '—'}</td>
+                  <td>
+                    {inv.total != null ? (
+                      <>
+                        {formatMoneyLkr(inv.total)} <span className="invoice-form-currency-suffix">LKR</span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>
                     <ActionButtons
                       basePath="/billing"
                       id={inv._id}
+                      onDownloadPdf={() => {
+                        const w = window.open('about:blank', '_blank');
+                        if (!w) {
+                          setError('Could not open a new tab. Check your browser settings.');
+                          return;
+                        }
+                        try {
+                          w.document.write(
+                            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading…</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;color:#64748b">Loading PDF…</body></html>'
+                          );
+                          w.document.close();
+                        } catch {
+                          /* ignore — some environments restrict document access */
+                        }
+                        billingApi
+                          .downloadInvoicePdf(inv._id, { targetWindow: w })
+                          .catch((err) => {
+                            try {
+                              w.close();
+                            } catch {
+                              /* ignore */
+                            }
+                            setError(err.message || 'Failed to open PDF');
+                          });
+                      }}
                       onDelete={() =>
                         billingApi.deleteInvoice(inv._id)
                           .then(() => setInvoices((prev) => prev.filter((x) => x._id !== inv._id)))

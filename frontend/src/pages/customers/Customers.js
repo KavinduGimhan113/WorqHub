@@ -6,6 +6,21 @@ import { Link } from 'react-router-dom';
 import * as customersApi from '../../api/customers';
 import ActionButtons from '../../components/ActionButtons';
 
+function normalizeCustomerList(body) {
+  if (body == null) return [];
+  let rows = body.data;
+  if (rows && typeof rows === 'object' && !Array.isArray(rows) && Array.isArray(rows.data)) {
+    rows = rows.data;
+  }
+  return Array.isArray(rows) ? rows : Array.isArray(body) ? body : [];
+}
+
+/** Display id: CUS-001, CUS-002, … (from API `customerCode`). */
+function customerIdCell(c) {
+  const code = (c?.customerCode ?? c?.customer_code)?.trim();
+  return code || '—';
+}
+
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +29,7 @@ export default function Customers() {
   useEffect(() => {
     customersApi
       .list()
-      .then((res) => setCustomers(res.data?.data ?? res.data ?? []))
+      .then((body) => setCustomers(normalizeCustomerList(body)))
       .catch((err) => {
         if (err.response?.status === 404) {
           setCustomers([]);
@@ -65,6 +80,7 @@ export default function Customers() {
           <table className="table">
             <thead>
               <tr>
+                <th>Customer ID</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -75,6 +91,7 @@ export default function Customers() {
             <tbody>
               {customers.map((c) => (
                 <tr key={c._id}>
+                  <td>{customerIdCell(c)}</td>
                   <td>{c.name}</td>
                   <td>{c.email || '—'}</td>
                   <td>{c.phone || '—'}</td>

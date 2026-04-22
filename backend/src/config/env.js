@@ -25,5 +25,5 @@ module.exports = {
   port: parseInt(process.env.PORT || '5000', 10),
   jwtSecret: process.env.JWT_SECRET || defaultJwt,
   mongoUri: process.env.MONGO_URI || process.env.MONGODB_URI || '',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  corsOrigin: process.env.CORS_ORIGIN || 'https://worq-hub.vercel.app',
 };

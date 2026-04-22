@@ -2,8 +2,7 @@
  * Axios instance: base URL and JWT + tenant context in headers.
  */
 import axios from 'axios';
-
-const API_BASE = process.env.REACT_APP_API_URL || '/api/v1';
+import { API_BASE } from '../utils/constants';
 
 const client = axios.create({
   baseURL: API_BASE,

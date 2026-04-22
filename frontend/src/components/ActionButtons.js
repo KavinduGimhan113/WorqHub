@@ -27,15 +27,28 @@ const IconDelete = () => (
   </svg>
 );
 
-export default function ActionButtons({ basePath, id, onDelete, itemName }) {
+export default function ActionButtons({ basePath, id, onDelete, itemName, onDownloadPdf }) {
   const editPath = `${basePath}/${id}/edit`;
+  const viewOpensPdf = typeof onDownloadPdf === 'function';
 
   return (
     <div className="table-actions">
-      <Link to={editPath} className="btn btn-action btn-action-view" title="View details">
-        <IconView />
-        <span>View</span>
-      </Link>
+      {viewOpensPdf ? (
+        <button
+          type="button"
+          className="btn btn-action btn-action-view"
+          title="View invoice PDF"
+          onClick={onDownloadPdf}
+        >
+          <IconView />
+          <span>View</span>
+        </button>
+      ) : (
+        <Link to={editPath} className="btn btn-action btn-action-view" title="View details">
+          <IconView />
+          <span>View</span>
+        </Link>
+      )}
       <Link to={editPath} className="btn btn-action btn-action-edit" title="Edit">
         <IconEdit />
         <span>Edit</span>

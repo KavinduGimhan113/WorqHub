@@ -5,8 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import * as inventoryApi from '../../api/inventory';
 
-const UNIT_OPTIONS = ['unit', 'each', 'box', 'kg', 'lb', 'm', 'ft', 'hour', 'day'];
-
 export default function InventoryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,14 +13,41 @@ export default function InventoryForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [skuLoading, setSkuLoading] = useState(!isEdit);
   const [form, setForm] = useState({
+    categoryId: '',
     sku: '',
     name: '',
     quantity: 0,
-    unit: 'unit',
     minQuantity: 0,
     location: '',
   });
+
+  useEffect(() => {
+    inventoryApi
+      .listCategories()
+      .then((body) => {
+        const rows = body?.data ?? body;
+        setCategories(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => setCategories([]))
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!isEdit) {
+      inventoryApi
+        .suggestNextSku()
+        .then((body) => {
+          const sku = body?.data?.sku ?? body?.sku;
+          if (sku) setForm((prev) => ({ ...prev, sku }));
+        })
+        .catch(() => {})
+        .finally(() => setSkuLoading(false));
+    }
+  }, [isEdit]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -30,11 +55,14 @@ export default function InventoryForm() {
         .get(id)
         .then((res) => {
           const data = res.data?.data ?? res.data ?? res;
+          const cid = data.categoryId;
+          const categoryIdStr =
+            typeof cid === 'object' && cid?._id ? String(cid._id) : cid ? String(cid) : '';
           setForm({
+            categoryId: categoryIdStr,
             sku: data.sku ?? '',
             name: data.name ?? '',
             quantity: data.quantity ?? 0,
-            unit: data.unit ?? 'unit',
             minQuantity: data.minQuantity ?? 0,
             location: data.location ?? '',
           });
@@ -61,8 +89,8 @@ export default function InventoryForm() {
     const payload = {
       sku: form.sku.trim(),
       name: form.name.trim(),
+      categoryId: form.categoryId.trim() || null,
       quantity: Number(form.quantity) || 0,
-      unit: form.unit || 'unit',
       minQuantity: Number(form.minQuantity) || 0,
       location: form.location.trim() || undefined,
     };
@@ -95,6 +123,31 @@ export default function InventoryForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Item details</h3>
+          <div className="form-group">
+            <label className="label" htmlFor="categoryId">Category</label>
+            <select
+              id="categoryId"
+              className="input"
+              value={form.categoryId}
+              onChange={(e) => update('categoryId', e.target.value)}
+              disabled={categoriesLoading}
+            >
+              <option value="">
+                {categoriesLoading ? 'Loading categories…' : 'Select a category (optional)'}
+              </option>
+              {categories.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {!categoriesLoading && categories.length === 0 && (
+              <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                No categories yet.{' '}
+                <Link to="/inventory/categories/register">Register categories</Link> first — you can add as many as you need.
+              </p>
+            )}
+          </div>
           <div className="form-row">
             <div className="form-group">
               <label className="label" htmlFor="sku">SKU *</label>
@@ -102,12 +155,19 @@ export default function InventoryForm() {
                 id="sku"
                 type="text"
                 className="input"
-                value={form.sku}
+                value={skuLoading ? '' : form.sku}
                 onChange={(e) => update('sku', e.target.value)}
-                placeholder="e.g. WIDGET-001"
+                placeholder={skuLoading ? 'Generating SKU…' : 'WIDGET-001'}
                 required
-                readOnly={isEdit}
+                readOnly={isEdit || skuLoading}
+                disabled={skuLoading}
+                aria-busy={skuLoading}
               />
+              {!isEdit && !skuLoading && (
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  Auto-generated (WIDGET-###). You can edit before saving if needed.
+                </p>
+              )}
               {isEdit && (
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                   SKU cannot be changed when editing.
@@ -138,19 +198,6 @@ export default function InventoryForm() {
                 value={form.quantity}
                 onChange={(e) => update('quantity', e.target.value)}
               />
-            </div>
-            <div className="form-group">
-              <label className="label" htmlFor="unit">Unit</label>
-              <select
-                id="unit"
-                className="input"
-                value={form.unit}
-                onChange={(e) => update('unit', e.target.value)}
-              >
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
             </div>
             <div className="form-group">
               <label className="label" htmlFor="minQuantity">Min. quantity (reorder)</label>

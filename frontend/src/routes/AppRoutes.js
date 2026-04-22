@@ -14,12 +14,15 @@ import Customers from '../pages/customers/Customers';
 import CustomerForm from '../pages/customers/CustomerForm';
 import Inventory from '../pages/inventory/Inventory';
 import InventoryForm from '../pages/inventory/InventoryForm';
+import InventoryCategoriesRegister from '../pages/inventory/InventoryCategoriesRegister';
 import Billing from '../pages/billing/Billing';
 import InvoiceForm from '../pages/billing/InvoiceForm';
 import Employees from '../pages/employees/Employees';
 import EmployeeForm from '../pages/employees/EmployeeForm';
 import Reports from '../pages/reports/Reports';
 import Settings from '../pages/settings/Settings';
+import Expenses from '../pages/expenses/Expenses';
+import ExpenseForm from '../pages/expenses/ExpenseForm';
 
 export function AppRoutes() {
   return (
@@ -42,6 +45,7 @@ export function AppRoutes() {
         <Route path="customers/new" element={<CustomerForm />} />
         <Route path="customers/:id/edit" element={<CustomerForm />} />
         <Route path="inventory" element={<Inventory />} />
+        <Route path="inventory/categories/register" element={<InventoryCategoriesRegister />} />
         <Route path="inventory/new" element={<InventoryForm />} />
         <Route path="inventory/:id/edit" element={<InventoryForm />} />
         <Route path="billing" element={<Billing />} />
@@ -51,6 +55,9 @@ export function AppRoutes() {
         <Route path="employees/new" element={<EmployeeForm />} />
         <Route path="employees/:id/edit" element={<EmployeeForm />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="expenses" element={<Expenses />} />
+        <Route path="expenses/new" element={<ExpenseForm />} />
+        <Route path="expenses/:id/edit" element={<ExpenseForm />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

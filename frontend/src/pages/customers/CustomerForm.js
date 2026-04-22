@@ -14,6 +14,7 @@ export default function CustomerForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
+    customerCode: '',
     name: '',
     email: '',
     phone: '',
@@ -29,6 +30,7 @@ export default function CustomerForm() {
         .then((res) => {
           const data = res.data?.data ?? res.data ?? res;
           setForm({
+            customerCode: data.customerCode ?? '',
             name: data.name ?? '',
             email: data.email ?? '',
             phone: data.phone ?? '',
@@ -89,6 +91,20 @@ export default function CustomerForm() {
 
         <div className="form-section">
           <h3 className="form-section-title">Contact</h3>
+          {isEdit && form.customerCode ? (
+            <div className="form-group">
+              <label className="label" htmlFor="customerCode">Customer ID</label>
+              <input
+                id="customerCode"
+                type="text"
+                className="input"
+                value={form.customerCode}
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
+              />
+            </div>
+          ) : null}
           <div className="form-group">
             <label className="label" htmlFor="name">Name *</label>
             <input
