@@ -101,6 +101,10 @@ export default function Inventory() {
                     <ActionButtons
                       basePath="/inventory"
                       id={item._id}
+                      deleteConfirmMessage={
+                        'Delete this inventory item? This cannot be undone.\n\n' +
+                          `SKU: ${item.sku || '—'} · ${item.name || 'Item'}`
+                      }
                       onDelete={() =>
                         inventoryApi.remove(item._id)
                           .then(() => setItems((prev) => prev.filter((x) => x._id !== item._id)))

@@ -358,12 +358,7 @@ export default function WorkOrderForm() {
         </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="card card-body"
-        style={{ maxWidth: 840 }}
-        aria-readonly={readOnly || undefined}
-      >
+      <form onSubmit={handleSubmit} className="card card-body" style={{ maxWidth: 840 }}>
         {error && <div className="form-error" role="alert">{error}</div>}
 
         <div className="form-section">

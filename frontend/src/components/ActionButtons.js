@@ -27,7 +27,15 @@ const IconDelete = () => (
   </svg>
 );
 
-export default function ActionButtons({ basePath, id, onDelete, itemName, onDownloadPdf }) {
+export default function ActionButtons({
+  basePath,
+  id,
+  onDelete,
+  itemName,
+  onDownloadPdf,
+  /** If set, shown instead of the default "Delete this {itemName}?" */
+  deleteConfirmMessage,
+}) {
   const viewPath = `${basePath}/${id}`;
   const editPath = `${basePath}/${id}/edit`;
   const viewOpensPdf = typeof onDownloadPdf === 'function';
@@ -59,7 +67,8 @@ export default function ActionButtons({ basePath, id, onDelete, itemName, onDown
         className="btn btn-action btn-action-delete"
         title={`Delete ${itemName}`}
         onClick={() => {
-          if (window.confirm(`Delete this ${itemName}?`)) {
+          const msg = deleteConfirmMessage || `Delete this ${itemName}?`;
+          if (window.confirm(msg)) {
             onDelete();
           }
         }}

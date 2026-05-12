@@ -4,6 +4,7 @@
 const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const WorkOrder = require('../models/WorkOrder');
+const Inventory = require('../models/Inventory');
 const InvoiceCounter = require('../models/InvoiceCounter');
 const Tenant = require('../models/Tenant');
 const asyncHandler = require('../utils/asyncHandler');
@@ -26,13 +27,56 @@ async function assertCustomerHasBillableWorkOrderItems(tenantId, customerId) {
   for (const wo of wos) {
     for (const it of wo.items || []) {
       const q = Number(it.quantity) || 0;
-      if (q > 0 && String(it.name || '').trim()) return;
+      if (q <= 0) continue;
+      if (String(it.name || '').trim()) return;
+      if (it.inventoryId != null && mongoose.isValidObjectId(String(it.inventoryId))) return;
     }
   }
   throw new ApiError(
     400,
     'Add at least one line item on a work order for this customer before creating an invoice.'
   );
+}
+
+/** When an invoice line description exactly matches an inventory item name (case-insensitive), quantities cannot exceed on-hand stock. */
+async function assertInvoiceLinesWithinInventoryStock(tenantId, lineItems) {
+  const items = await Inventory.find({ tenantId }).select('name quantity sku').lean();
+  const byLowerName = new Map();
+  for (const inv of items) {
+    const k = String(inv.name || '').trim().toLowerCase();
+    if (!k) continue;
+    byLowerName.set(k, {
+      quantity: Number(inv.quantity) || 0,
+      label: String(inv.name || inv.sku || k).trim() || k,
+    });
+  }
+  const requested = new Map();
+  for (const li of lineItems || []) {
+    const desc = String(li.description || '').trim();
+    if (!desc) continue;
+    const k = desc.toLowerCase();
+    if (!byLowerName.has(k)) continue;
+    const q = Number(li.quantity) || 0;
+    if (q <= 0) continue;
+    requested.set(k, (requested.get(k) || 0) + q);
+  }
+  for (const [k, want] of requested) {
+    const inv = byLowerName.get(k);
+    if (want > inv.quantity) {
+      throw new ApiError(
+        400,
+        `Invoiced quantity for "${inv.label}" (${want}) exceeds available stock (${inv.quantity}).`
+      );
+    }
+  }
+}
+
+function isDueDateInThePast(dueVal) {
+  if (!dueVal) return false;
+  const d = new Date(dueVal);
+  if (Number.isNaN(d.getTime())) return false;
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  return Date.now() > end.getTime();
 }
 
 function lineItemRowTotal(r) {
@@ -151,6 +195,7 @@ exports.create = asyncHandler(async (req, res) => {
   } else {
     throw new ApiError(400, 'Customer is required');
   }
+  await assertInvoiceLinesWithinInventoryStock(req.tenantId, body.lineItems || []);
 
   await syncInvoiceCounterFromDb(req.tenantId);
   const counter = await InvoiceCounter.findOneAndUpdate(
@@ -167,6 +212,12 @@ exports.create = asyncHandler(async (req, res) => {
 
 exports.update = asyncHandler(async (req, res) => {
   assertMongoObjectId(req.params.id, 'invoice id');
+  const existing = await Invoice.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
+  if (!existing) throw new ApiError(404, 'Invoice not found');
+  if (isDueDateInThePast(existing.dueDate)) {
+    throw new ApiError(400, 'This invoice cannot be edited because its due date has passed.');
+  }
+
   const body = { ...req.body };
   if (body.customerId === '' || body.customerId == null) body.customerId = undefined;
   delete body.invoiceSeq;
@@ -174,6 +225,11 @@ exports.update = asyncHandler(async (req, res) => {
   if (body.customerId != null) {
     await assertCustomerHasBillableWorkOrderItems(req.tenantId, body.customerId);
   }
+  if (!Array.isArray(body.lineItems)) {
+    body.lineItems = existing.lineItems || [];
+  }
+  await assertInvoiceLinesWithinInventoryStock(req.tenantId, body.lineItems);
+
   const normalized = normalizeInvoiceTotals(body);
   const doc = await Invoice.findOneAndUpdate(
     { _id: req.params.id, tenantId: req.tenantId },

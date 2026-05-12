@@ -6,6 +6,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
 import * as customersApi from '../../api/customers';
 import * as workOrdersApi from '../../api/workOrders';
+import * as inventoryApi from '../../api/inventory';
 import { useAuth } from '../../context/AuthContext';
 
 const initialLineItem = () => ({ description: '', quantity: 1, unitPrice: 0 });
@@ -81,20 +82,51 @@ function aggregateCustomerWorkOrderItems(workOrders) {
     const woTitle = (wo.title && String(wo.title).trim()) || '';
     const ref = woLabel ? `#${woLabel}${woTitle ? ` · ${woTitle}` : ''}` : woTitle || 'Work order';
     for (const it of wo.items || []) {
-      const name = (it.name && String(it.name).trim()) || 'Item';
       const qty = Number(it.quantity) || 0;
-      const key = name;
+      if (qty <= 0) continue;
+      const trimmedName = (it.name && String(it.name).trim()) || '';
+      const key =
+        trimmedName ||
+        (it.inventoryId != null ? `__inv_${String(it.inventoryId)}` : '');
+      if (!key) continue;
+      const displayName = trimmedName || 'Stock item';
       const prev = map.get(key) || {
-        name,
+        name: displayName,
         quantity: 0,
         workOrderRefs: [],
       };
       prev.quantity += qty;
+      if (!trimmedName && prev.name === 'Stock item') prev.name = displayName;
       if (ref && !prev.workOrderRefs.includes(ref)) prev.workOrderRefs.push(ref);
       map.set(key, prev);
     }
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+/** Match backend: lock editing after end of the due date (local calendar day). */
+function isInvoiceDueDatePassed(dueStr) {
+  if (!dueStr) return false;
+  const d = new Date(dueStr);
+  if (Number.isNaN(d.getTime())) return false;
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  return Date.now() > end.getTime();
+}
+
+/** Max quantity for this line when description matches an inventory item name (case-insensitive). */
+function maxInvoiceQtyForLine(lineItems, lineIndex, descriptionTrimmed, inventoryList) {
+  if (!descriptionTrimmed) return null;
+  const key = descriptionTrimmed.toLowerCase();
+  const inv = inventoryList.find((x) => String(x.name || '').trim().toLowerCase() === key);
+  if (!inv) return null;
+  const stock = Number(inv.quantity) || 0;
+  let otherLines = 0;
+  for (let j = 0; j < lineItems.length; j++) {
+    if (j === lineIndex) continue;
+    const d = String(lineItems[j].description || '').trim();
+    if (d.toLowerCase() === key) otherLines += Number(lineItems[j].quantity) || 0;
+  }
+  return Math.max(0, stock - otherLines);
 }
 
 export default function InvoiceForm() {
@@ -113,6 +145,7 @@ export default function InvoiceForm() {
   const [error, setError] = useState('');
   const [customerWoItems, setCustomerWoItems] = useState([]);
   const [loadingCustomerWoItems, setLoadingCustomerWoItems] = useState(false);
+  const [inventoryList, setInventoryList] = useState([]);
   const [form, setForm] = useState({
     number: '',
     customerId: '',
@@ -134,6 +167,16 @@ export default function InvoiceForm() {
       .then((res) => setCustomers(res.data?.data ?? res.data ?? []))
       .catch(() => setCustomers([]))
       .finally(() => setLoadingCustomers(false));
+  }, []);
+
+  useEffect(() => {
+    inventoryApi
+      .list()
+      .then((body) => {
+        const rows = body?.data ?? body;
+        setInventoryList(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => setInventoryList([]));
   }, []);
 
   useEffect(() => {
@@ -195,10 +238,11 @@ export default function InvoiceForm() {
     let cancelled = false;
     setLoadingCustomerWoItems(true);
     workOrdersApi
-      .list({ customerId: cid, limit: 100, page: 1 })
+      .list({ customerId: cid, limit: 500, order: 'recent', page: 1 })
       .then((body) => {
         if (cancelled) return;
-        const list = Array.isArray(body?.data) ? body.data : body?.data?.data ?? [];
+        const raw = body?.data;
+        const list = Array.isArray(raw) ? raw : [];
         setCustomerWoItems(aggregateCustomerWorkOrderItems(list));
       })
       .catch(() => {
@@ -215,17 +259,34 @@ export default function InvoiceForm() {
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const updateLineItem = (index, field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems.map((item, i) => {
+    setForm((prev) => {
+      const nextItems = prev.lineItems.map((item, i) => {
         if (i !== index) return item;
-        const next = { ...item, [field]: value };
+        let v = value;
+        if (field === 'quantity') {
+          const desc = String(item.description || '').trim();
+          const cap = maxInvoiceQtyForLine(prev.lineItems, index, desc, inventoryList);
+          const n = Number(value);
+          if (cap != null && Number.isFinite(n) && n > cap) v = cap;
+        }
+        const next = { ...item, [field]: v };
         if (field === 'quantity' || field === 'unitPrice') {
           delete next.amount;
         }
         return next;
-      }),
-    }));
+      });
+      if (field === 'description') {
+        const cap = maxInvoiceQtyForLine(nextItems, index, String(value || '').trim(), inventoryList);
+        if (cap != null) {
+          const q = Number(nextItems[index].quantity) || 0;
+          if (q > cap) {
+            nextItems[index] = { ...nextItems[index], quantity: cap };
+            delete nextItems[index].amount;
+          }
+        }
+      }
+      return { ...prev, lineItems: nextItems };
+    });
   };
 
   /** User typed the line total; derive unit price (set qty to 1 if it was 0). */
@@ -286,6 +347,22 @@ export default function InvoiceForm() {
   );
   const billPreview = formatBillPreview(selectedCustomer);
 
+  const invoiceLockedPastDue = isEdit && isInvoiceDueDatePassed(form.dueDate);
+
+  const validateInvoiceStockLines = () => {
+    for (let i = 0; i < form.lineItems.length; i++) {
+      const li = form.lineItems[i];
+      const desc = String(li.description || '').trim();
+      if (!desc) continue;
+      const cap = maxInvoiceQtyForLine(form.lineItems, i, desc, inventoryList);
+      const q = Number(li.quantity) || 0;
+      if (cap != null && q > cap) {
+        return `Quantity for "${desc}" cannot exceed available stock (${cap}) for this invoice.`;
+      }
+    }
+    return null;
+  };
+
   const buildPayload = () => {
     const lineItems = form.lineItems
       .filter((i) => i.description.trim())
@@ -325,6 +402,10 @@ export default function InvoiceForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    if (invoiceLockedPastDue) {
+      setError('This invoice cannot be edited because its due date has passed.');
+      return;
+    }
     if (!form.number.trim()) {
       setError('Invoice number is required.');
       return;
@@ -332,6 +413,11 @@ export default function InvoiceForm() {
     const validItems = form.lineItems.filter((i) => i.description.trim());
     if (validItems.length === 0) {
       setError('Add at least one line item with a description.');
+      return;
+    }
+    const stockErr = validateInvoiceStockLines();
+    if (stockErr) {
+      setError(stockErr);
       return;
     }
     if (!isEdit && form.customerId) {
@@ -363,6 +449,9 @@ export default function InvoiceForm() {
   }
 
   const orgName = user?.tenantName?.trim() || 'Your organization';
+  const frozen = invoiceLockedPastDue;
+  const createWaitingWo =
+    !isEdit && Boolean(form.customerId && String(form.customerId).trim()) && loadingCustomerWoItems;
 
   return (
     <>
@@ -411,6 +500,15 @@ export default function InvoiceForm() {
         </div>
 
         <div className="invoice-form-body">
+          {frozen && (
+            <div
+              className="form-success"
+              role="status"
+              style={{ marginBottom: '1rem', borderColor: 'var(--color-border)', background: 'var(--color-bg-muted)' }}
+            >
+              This invoice&apos;s due date has passed. Editing is disabled; you can still download the PDF.
+            </div>
+          )}
           {error && (
             <div className="form-error" role="alert">
               {error}
@@ -432,7 +530,7 @@ export default function InvoiceForm() {
                 className="input"
                 value={form.customerId}
                 onChange={(e) => update('customerId', e.target.value)}
-                disabled={loadingCustomers}
+                disabled={frozen || loadingCustomers}
               >
                 <option value="">— Select customer —</option>
                 {customers.map((c) => (
@@ -511,6 +609,7 @@ export default function InvoiceForm() {
                 className="input"
                 value={form.dueDate}
                 onChange={(e) => update('dueDate', e.target.value)}
+                readOnly={frozen}
               />
             </div>
             <div>
@@ -526,6 +625,7 @@ export default function InvoiceForm() {
                 className="input"
                 value={form.status}
                 onChange={(e) => update('status', e.target.value)}
+                disabled={frozen}
               >
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
@@ -561,6 +661,8 @@ export default function InvoiceForm() {
               <tbody>
                 {form.lineItems.map((item, index) => {
                   const lineAmt = roundMoney(lineItemRowTotal(item));
+                  const descTrim = String(item.description || '').trim();
+                  const stockCap = maxInvoiceQtyForLine(form.lineItems, index, descTrim, inventoryList);
                   return (
                     <tr key={index}>
                       <td className="col-date">{issueDateStr}</td>
@@ -572,6 +674,7 @@ export default function InvoiceForm() {
                           value={item.description}
                           onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                           aria-label={`Line ${index + 1} description`}
+                          readOnly={frozen}
                         />
                       </td>
                       <td className="col-num">
@@ -580,11 +683,23 @@ export default function InvoiceForm() {
                           className="input"
                           placeholder="0"
                           min={0}
+                          max={stockCap != null ? stockCap : undefined}
                           step="any"
                           value={item.quantity}
                           onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
                           aria-label={`Line ${index + 1} quantity`}
+                          readOnly={frozen}
+                          title={
+                            stockCap != null
+                              ? `Max ${stockCap} (matches inventory on-hand for this description)`
+                              : undefined
+                          }
                         />
+                        {stockCap != null ? (
+                          <span className="invoice-form-party-meta" style={{ display: 'block', marginTop: '0.25rem' }}>
+                            Max qty: {stockCap} (inventory)
+                          </span>
+                        ) : null}
                       </td>
                       <td className="col-num">
                         <input
@@ -598,6 +713,7 @@ export default function InvoiceForm() {
                           onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
                           aria-label={`Line ${index + 1} unit price (LKR)`}
                           title="Price per unit in LKR"
+                          readOnly={frozen}
                         />
                       </td>
                       <td className="col-num invoice-form-amount-cell">
@@ -612,6 +728,7 @@ export default function InvoiceForm() {
                           onChange={(e) => updateLineItemFromAmount(index, e.target.value)}
                           aria-label={`Line ${index + 1} line total (LKR)`}
                           title="Line total in LKR (qty × unit price); editing this adjusts unit price"
+                          readOnly={frozen}
                         />
                       </td>
                       <td className="col-action">
@@ -619,7 +736,7 @@ export default function InvoiceForm() {
                           type="button"
                           className="btn btn-ghost"
                           onClick={() => removeLineItem(index)}
-                          disabled={form.lineItems.length <= 1}
+                          disabled={frozen || form.lineItems.length <= 1}
                           aria-label={`Remove line ${index + 1}`}
                         >
                           Remove
@@ -632,7 +749,12 @@ export default function InvoiceForm() {
             </table>
           </div>
 
-          <button type="button" className="btn btn-secondary repeatable-add" onClick={addLineItem}>
+          <button
+            type="button"
+            className="btn btn-secondary repeatable-add"
+            onClick={addLineItem}
+            disabled={frozen}
+          >
             + Add line item
           </button>
 
@@ -652,6 +774,7 @@ export default function InvoiceForm() {
                 value={form.govTax}
                 onChange={(e) => update('govTax', e.target.value)}
                 title="Fixed government tax or levy amount added to the bill (not a percentage)"
+                readOnly={frozen}
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -671,6 +794,7 @@ export default function InvoiceForm() {
                 value={form.discountPercent}
                 onChange={(e) => update('discountPercent', e.target.value)}
                 title="Percentage off the line-item subtotal (leave empty for no discount)"
+                readOnly={frozen}
               />
             </div>
           </div>
@@ -738,7 +862,11 @@ export default function InvoiceForm() {
           )}
 
           <div className="form-actions" style={{ borderTop: 'none', marginTop: '0.5rem', paddingTop: 0 }}>
-            <button type="submit" className="btn btn-primary" disabled={saving || numberLoading}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={saving || numberLoading || frozen || createWaitingWo}
+            >
               {saving ? (isEdit ? 'Saving…' : 'Creating…') : isEdit ? 'Save invoice' : 'Create invoice'}
             </button>
             <Link to="/billing" className="btn btn-secondary">
