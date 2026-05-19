@@ -140,7 +140,7 @@ exports.list = asyncHandler(async (req, res) => {
   const filter = { tenantId: req.tenantId };
   if (status) filter.status = status;
   if (employeeId && mongoose.Types.ObjectId.isValid(employeeId)) {
-    filter.assignedEmployeeIds = employeeId;
+    filter.assignedEmployeeIds = { $in: [new mongoose.Types.ObjectId(employeeId)] };
   }
   if (customerId && mongoose.Types.ObjectId.isValid(customerId)) {
     filter.customerId = customerId;

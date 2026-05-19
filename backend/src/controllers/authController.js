@@ -19,9 +19,11 @@ exports.register = asyncHandler(async (req, res) => {
   const user = await User.create({ tenantId, email: normalizedEmail, passwordHash, name, role: role || 'Staff' });
   const token = authService.generateToken(user);
   const { passwordHash: _, ...safe } = user.toObject();
+  const rawCurrency = tenant?.settings?.currency ? String(tenant.settings.currency).toUpperCase() : 'USD';
+  const tenantCurrency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : 'USD';
   res.status(201).json({
     success: true,
-    user: { ...safe, tenantName: tenant?.name || '' },
+    user: { ...safe, tenantName: tenant?.name || '', tenantCurrency },
     token,
   });
 });
@@ -36,9 +38,11 @@ exports.login = asyncHandler(async (req, res) => {
 exports.me = asyncHandler(async (req, res) => {
   const user = await User.findById(req.userId).select('-passwordHash').lean();
   if (!user) throw new ApiError(404, 'User not found');
-  const tenant = await Tenant.findById(user.tenantId).select('name').lean();
+  const tenant = await Tenant.findById(user.tenantId).select('name settings.currency').lean();
+  const rawCurrency = tenant?.settings?.currency ? String(tenant.settings.currency).toUpperCase() : 'USD';
+  const tenantCurrency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : 'USD';
   res.json({
     success: true,
-    user: { ...user, tenantName: tenant?.name || '' },
+    user: { ...user, tenantName: tenant?.name || '', tenantCurrency },
   });
 });

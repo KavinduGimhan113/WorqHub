@@ -6,6 +6,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import * as workOrdersApi from '../../api/workOrders';
 import * as customersApi from '../../api/customers';
 import ActionButtons from '../../components/ActionButtons';
+import ListPagination from '../../components/ListPagination';
+
+const PAGE_SIZE = 20;
 
 function formatWorkOrderDisplayId(wo) {
   const n = wo?.workOrderNumber != null ? Number(wo.workOrderNumber) : NaN;
@@ -53,34 +56,55 @@ function CustomerCell({ customerId, customersById }) {
 }
 
 export default function WorkOrders() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const employeeIdFilter = searchParams.get('employeeId') || '';
   const employeeNameFilter = searchParams.get('employeeName') || '';
+  const pageFromUrl = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+
   const [orders, setOrders] = useState([]);
   const [customersById, setCustomersById] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(pageFromUrl);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    /** Newest first; API default is WO# ascending, limit 20, no pagination — new orders were often off page 1. */
+    setPage(pageFromUrl);
+  }, [pageFromUrl]);
+
+  useEffect(() => {
+    setLoading(true);
     const params = {
       order: 'recent',
-      limit: 200,
+      page,
+      limit: PAGE_SIZE,
       ...(employeeIdFilter ? { employeeId: employeeIdFilter } : {}),
     };
     Promise.all([workOrdersApi.list(params), customersApi.list().catch(() => ({ data: [] }))])
       .then(([woBody, custBody]) => {
         const rows = woBody?.data ?? woBody;
         setOrders(Array.isArray(rows) ? rows : []);
+        setTotal(typeof woBody?.total === 'number' ? woBody.total : Array.isArray(rows) ? rows.length : 0);
         const custList = custBody?.data ?? custBody;
         const list = Array.isArray(custList) ? custList : [];
         setCustomersById(new Map(list.map((x) => [String(x._id), x])));
       })
       .catch((err) => setError(err.response?.data?.message || 'Failed to load work orders'))
       .finally(() => setLoading(false));
-  }, [employeeIdFilter]);
+  }, [employeeIdFilter, page]);
 
-  if (loading) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
+
+  const goToPage = (nextPage) => {
+    const p = Math.min(Math.max(1, nextPage), totalPages);
+    const next = new URLSearchParams(searchParams);
+    if (p <= 1) next.delete('page');
+    else next.set('page', String(p));
+    setSearchParams(next, { replace: true });
+    setPage(p);
+  };
+
+  if (loading && orders.length === 0) {
     return (
       <div className="loading-screen" style={{ minHeight: 200 }}>
         <div className="loading-spinner" aria-label="Loading" />
@@ -113,81 +137,107 @@ export default function WorkOrders() {
       )}
 
       <div className="table-wrap card">
-        {orders.length === 0 ? (
+        {!loading && orders.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon" aria-hidden>📋</div>
-            <h3 className="empty-state-title">No work orders yet</h3>
-            <p className="empty-state-text">Create your first work order to start tracking jobs.</p>
-            <Link to="/work-orders/new" className="btn btn-primary">
-              New work order
-            </Link>
+            <h3 className="empty-state-title">
+              {employeeIdFilter ? 'No assigned work orders' : 'No work orders yet'}
+            </h3>
+            <p className="empty-state-text">
+              {employeeIdFilter
+                ? 'This employee has no work orders assigned yet.'
+                : 'Create your first work order to start tracking jobs.'}
+            </p>
+            {!employeeIdFilter && (
+              <Link to="/work-orders/new" className="btn btn-primary">
+                New work order
+              </Link>
+            )}
           </div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Customer</th>
-                <th>Assigned</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Scheduled</th>
-                <th style={{ width: 180 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((wo) => (
-                <tr key={wo._id}>
-                  <td>
-                    <span className="work-order-list-number" title={wo._id ? String(wo._id) : undefined}>
-                      {formatWorkOrderDisplayId(wo)}
-                    </span>
-                  </td>
-                  <td>{wo.title}</td>
-                  <td>
-                    <CustomerCell customerId={wo.customerId} customersById={customersById} />
-                  </td>
-                  <td>
-                    {Array.isArray(wo.assignedEmployeeIds) && wo.assignedEmployeeIds.length > 0 ? (
-                      <div className="work-order-list-assignees">
-                        {wo.assignedEmployeeIds.map((e) => (
-                          <span key={typeof e === 'object' && e?._id ? e._id : e} className="work-order-list-assignee-name">
-                            {typeof e === 'object' && e?.name ? e.name : '—'}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="table-customer-missing">—</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${statusClass[wo.status] || 'badge-draft'}`}>
-                      {wo.status?.replace('_', ' ') || 'draft'}
-                    </span>
-                  </td>
-                  <td>{wo.priority || '—'}</td>
-                  <td>
-                    {wo.scheduledAt
-                      ? new Date(wo.scheduledAt).toLocaleDateString()
-                      : '—'}
-                  </td>
-                  <td>
-                    <ActionButtons
-                      basePath="/work-orders"
-                      id={wo._id}
-                      onDelete={() =>
-                        workOrdersApi.remove(wo._id)
-                          .then(() => setOrders((prev) => prev.filter((o) => o._id !== wo._id)))
-                          .catch((err) => setError(err.response?.data?.message || 'Failed to delete'))
-                      }
-                      itemName="work order"
-                    />
-                  </td>
+          <>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Title</th>
+                  <th>Customer</th>
+                  <th>Assigned</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Scheduled</th>
+                  <th style={{ width: 180 }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {orders.map((wo) => (
+                  <tr key={wo._id}>
+                    <td>
+                      <span className="work-order-list-number" title={wo._id ? String(wo._id) : undefined}>
+                        {formatWorkOrderDisplayId(wo)}
+                      </span>
+                    </td>
+                    <td>{wo.title}</td>
+                    <td>
+                      <CustomerCell customerId={wo.customerId} customersById={customersById} />
+                    </td>
+                    <td>
+                      {Array.isArray(wo.assignedEmployeeIds) && wo.assignedEmployeeIds.length > 0 ? (
+                        <div className="work-order-list-assignees">
+                          {wo.assignedEmployeeIds.map((e) => (
+                            <span
+                              key={typeof e === 'object' && e?._id ? e._id : e}
+                              className="work-order-list-assignee-name"
+                            >
+                              {typeof e === 'object' && e?.name ? e.name : '—'}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="table-customer-missing">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${statusClass[wo.status] || 'badge-draft'}`}>
+                        {wo.status?.replace('_', ' ') || 'draft'}
+                      </span>
+                    </td>
+                    <td>{wo.priority || '—'}</td>
+                    <td>
+                      {wo.scheduledAt ? new Date(wo.scheduledAt).toLocaleDateString() : '—'}
+                    </td>
+                    <td>
+                      <ActionButtons
+                        basePath="/work-orders"
+                        id={wo._id}
+                        onDelete={() =>
+                          workOrdersApi
+                            .remove(wo._id)
+                            .then(() => {
+                              if (orders.length === 1 && page > 1) goToPage(page - 1);
+                              else
+                                setOrders((prev) => prev.filter((o) => o._id !== wo._id));
+                              setTotal((t) => Math.max(0, t - 1));
+                            })
+                            .catch((err) =>
+                              setError(err.response?.data?.message || 'Failed to delete')
+                            )
+                        }
+                        itemName="work order"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <ListPagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={total}
+              pageSize={PAGE_SIZE}
+              onPageChange={goToPage}
+            />
+          </>
         )}
       </div>
     </>

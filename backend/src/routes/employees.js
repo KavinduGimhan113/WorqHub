@@ -9,6 +9,7 @@ router.use(auth);
 router.use(requireTenant);
 
 router.get('/', employeeController.list);
+router.get('/assigned-work-counts', employeeController.assignedWorkCounts);
 router.get('/:id', employeeController.get);
 router.post('/', employeeController.create);
 router.put('/:id', employeeController.update);

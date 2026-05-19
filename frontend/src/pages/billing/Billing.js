@@ -5,6 +5,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
 import ActionButtons from '../../components/ActionButtons';
+import { useAuth } from '../../context/AuthContext';
+import { formatMoneyAmount, normalizeCurrencyCode } from '../../utils/money';
 
 const statusClass = {
   draft: 'badge-draft',
@@ -18,11 +20,6 @@ function invoiceCustomerLabel(inv) {
   const c = inv?.customerId;
   if (c && typeof c === 'object' && c.name) return String(c.name).trim() || '—';
   return '—';
-}
-
-function formatMoneyLkr(n) {
-  const x = Number(n) || 0;
-  return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function csvEscape(cell) {
@@ -42,6 +39,8 @@ function rangeFromMonthInput(monthStr) {
 }
 
 export default function Billing() {
+  const { user } = useAuth();
+  const currency = normalizeCurrencyCode(user?.tenantCurrency);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,7 +71,7 @@ export default function Billing() {
   }, [loadList]);
 
   const exportCsv = () => {
-    const headers = ['Invoice #', 'Customer', 'Status', 'Created', 'Due date', 'Amount (LKR)'];
+    const headers = ['Invoice #', 'Customer', 'Status', 'Created', 'Due date', `Amount (${currency})`];
     const rows = invoices.map((inv) => {
       const created = inv.createdAt ? new Date(inv.createdAt).toLocaleString() : '—';
       const due = inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '—';
@@ -239,7 +238,7 @@ export default function Billing() {
                 <th>Status</th>
                 <th>Created</th>
                 <th>Due date</th>
-                <th>Amount</th>
+                <th>Amount ({currency})</th>
                 <th style={{ width: 240 }}>Actions</th>
               </tr>
             </thead>
@@ -266,7 +265,7 @@ export default function Billing() {
                   <td>
                     {inv.total != null ? (
                       <>
-                        {formatMoneyLkr(inv.total)} <span className="invoice-form-currency-suffix">LKR</span>
+                        {formatMoneyAmount(inv.total)} <span className="invoice-form-currency-suffix">{currency}</span>
                       </>
                     ) : (
                       '—'

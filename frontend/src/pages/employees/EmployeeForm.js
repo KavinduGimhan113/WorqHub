@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import * as employeesApi from '../../api/employees';
 import { useRecordFormMode } from '../../hooks/useRecordFormMode';
+import { validatePhone } from '../../utils/phone';
 
 export default function EmployeeForm() {
   const { id, readOnly, isEditRoute, isCreate } = useRecordFormMode();
@@ -62,12 +63,17 @@ export default function EmployeeForm() {
       setError('Name is required.');
       return;
     }
+    const phoneCheck = validatePhone(form.phone);
+    if (!phoneCheck.ok) {
+      setError(phoneCheck.message);
+      return;
+    }
     setSaving(true);
     const payload = {
       employeeId: form.employeeId.trim() || undefined,
       name: form.name.trim(),
       email: form.email.trim() || undefined,
-      phone: form.phone.trim() || undefined,
+      phone: phoneCheck.value || undefined,
       department: form.department.trim() || undefined,
       position: form.position.trim() || undefined,
       joinDate: form.joinDate ? new Date(form.joinDate).toISOString() : undefined,

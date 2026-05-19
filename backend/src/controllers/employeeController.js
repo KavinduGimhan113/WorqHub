@@ -1,14 +1,42 @@
 /**
  * Employee controller. All queries scoped by req.tenantId.
  */
+const mongoose = require('mongoose');
 const Employee = require('../models/Employee');
+const WorkOrder = require('../models/WorkOrder');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
+const { validatePhone } = require('../utils/phone');
+
+function applyPhoneValidation(body) {
+  if (!Object.prototype.hasOwnProperty.call(body, 'phone')) return;
+  const result = validatePhone(body.phone);
+  if (!result.ok) throw new ApiError(400, result.message);
+  body.phone = result.value;
+}
 
 exports.list = asyncHandler(async (req, res) => {
   const filter = { tenantId: req.tenantId };
   const items = await Employee.find(filter).sort({ name: 1 }).lean();
   res.json({ success: true, data: items });
+});
+
+/** Work orders per employee (_id → count) for the Employees directory. */
+exports.assignedWorkCounts = asyncHandler(async (req, res) => {
+  const tid =
+    req.tenantId instanceof mongoose.Types.ObjectId
+      ? req.tenantId
+      : new mongoose.Types.ObjectId(req.tenantId);
+  const rows = await WorkOrder.aggregate([
+    { $match: { tenantId: tid, assignedEmployeeIds: { $exists: true, $ne: [] } } },
+    { $unwind: '$assignedEmployeeIds' },
+    { $group: { _id: '$assignedEmployeeIds', count: { $sum: 1 } } },
+  ]);
+  const data = {};
+  for (const row of rows) {
+    if (row._id) data[String(row._id)] = row.count;
+  }
+  res.json({ success: true, data });
 });
 
 exports.get = asyncHandler(async (req, res) => {
@@ -29,6 +57,7 @@ async function getNextEmployeeId(tenantId) {
 
 exports.create = asyncHandler(async (req, res) => {
   const body = { ...req.body, tenantId: req.tenantId };
+  applyPhoneValidation(body);
   if (!body.employeeId || !body.employeeId.trim()) {
     body.employeeId = await getNextEmployeeId(req.tenantId);
   }
@@ -37,9 +66,11 @@ exports.create = asyncHandler(async (req, res) => {
 });
 
 exports.update = asyncHandler(async (req, res) => {
+  const body = { ...req.body };
+  applyPhoneValidation(body);
   const doc = await Employee.findOneAndUpdate(
     { _id: req.params.id, tenantId: req.tenantId },
-    req.body,
+    body,
     { new: true, runValidators: true }
   ).lean();
   if (!doc) throw new ApiError(404, 'Employee not found');

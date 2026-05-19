@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import * as employeesApi from '../../api/employees';
-import * as workOrdersApi from '../../api/workOrders';
 import { getApiErrorMessage } from '../../api/errors';
 import ActionButtons from '../../components/ActionButtons';
 
@@ -43,20 +42,11 @@ export default function Employees() {
   }, []);
 
   useEffect(() => {
-    workOrdersApi
-      .list({ limit: 500 })
+    employeesApi
+      .assignedWorkCounts()
       .then((res) => {
-        const rows = res?.data?.data ?? res?.data ?? [];
-        const counts = {};
-        (Array.isArray(rows) ? rows : []).forEach((wo) => {
-          const assignees = Array.isArray(wo.assignedEmployeeIds) ? wo.assignedEmployeeIds : [];
-          assignees.forEach((a) => {
-            const id = typeof a === 'object' && a?._id ? String(a._id) : String(a || '');
-            if (!id) return;
-            counts[id] = (counts[id] || 0) + 1;
-          });
-        });
-        setAssignedWorkCounts(counts);
+        const counts = res?.data ?? res ?? {};
+        setAssignedWorkCounts(typeof counts === 'object' && counts !== null && !Array.isArray(counts) ? counts : {});
       })
       .catch(() => setAssignedWorkCounts({}));
   }, []);

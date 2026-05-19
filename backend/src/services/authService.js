@@ -34,7 +34,7 @@ async function login(email, password, tenantId) {
   if (tenantId) filter.tenantId = tenantId;
   const user = await User.findOne(filter)
     .select('+passwordHash')
-    .populate({ path: 'tenantId', select: 'name' });
+    .populate({ path: 'tenantId', select: 'name settings.currency' });
   if (!user) throw new ApiError(401, 'Invalid email or password');
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) throw new ApiError(401, 'Invalid email or password');
@@ -46,7 +46,12 @@ async function login(email, password, tenantId) {
     tdoc && typeof tdoc === 'object' && tdoc.name != null ? String(tdoc.name).trim() : '';
   const tenantIdOut =
     tdoc && typeof tdoc === 'object' && tdoc._id != null ? tdoc._id : tdoc;
-  return { user: { ...obj, tenantId: tenantIdOut, tenantName }, token };
+  const rawCurrency =
+    tdoc && typeof tdoc === 'object' && tdoc.settings?.currency
+      ? String(tdoc.settings.currency).toUpperCase()
+      : 'USD';
+  const tenantCurrency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : 'USD';
+  return { user: { ...obj, tenantId: tenantIdOut, tenantName, tenantCurrency }, token };
 }
 
 module.exports = { hashPassword, comparePassword, generateToken, login };

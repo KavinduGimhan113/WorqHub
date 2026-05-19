@@ -8,6 +8,7 @@ import * as customersApi from '../../api/customers';
 import * as workOrdersApi from '../../api/workOrders';
 import * as inventoryApi from '../../api/inventory';
 import { useAuth } from '../../context/AuthContext';
+import { formatMoneyLkr, normalizeCurrencyCode } from '../../utils/money';
 
 const initialLineItem = () => ({ description: '', quantity: 1, unitPrice: 0 });
 
@@ -36,11 +37,6 @@ function paymentTermsLabel(issued, dueStr) {
   } catch {
     return 'Per agreement';
   }
-}
-
-function formatMoneyLkr(n) {
-  const x = Number(n) || 0;
-  return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function roundMoney(n) {
@@ -133,6 +129,7 @@ export default function InvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const currency = normalizeCurrencyCode(user?.tenantCurrency);
   const isEdit = Boolean(id);
   const [issueAnchor] = useState(() => new Date());
   const [invoiceCreatedAt, setInvoiceCreatedAt] = useState(null);
@@ -153,7 +150,7 @@ export default function InvoiceForm() {
     status: 'draft',
     /** Optional % discount on line subtotal (0 or empty = none). */
     discountPercent: '',
-    /** Fixed government / levy amount (LKR), not a percentage. */
+    /** Fixed government / levy amount (tenant currency), not a percentage. */
     govTax: '',
     lineItems: [initialLineItem()],
   });
@@ -711,8 +708,8 @@ export default function InvoiceForm() {
                           inputMode="decimal"
                           value={item.unitPrice}
                           onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
-                          aria-label={`Line ${index + 1} unit price (LKR)`}
-                          title="Price per unit in LKR"
+                          aria-label={`Line ${index + 1} unit price (${currency})`}
+                          title={`Price per unit in ${currency}`}
                           readOnly={frozen}
                         />
                       </td>
@@ -726,8 +723,8 @@ export default function InvoiceForm() {
                           inputMode="decimal"
                           value={Number.isFinite(lineAmt) ? lineAmt : 0}
                           onChange={(e) => updateLineItemFromAmount(index, e.target.value)}
-                          aria-label={`Line ${index + 1} line total (LKR)`}
-                          title="Line total in LKR (qty × unit price); editing this adjusts unit price"
+                          aria-label={`Line ${index + 1} line total (${currency})`}
+                          title={`Line total in ${currency} (qty × unit price); editing this adjusts unit price`}
                           readOnly={frozen}
                         />
                       </td>
@@ -761,7 +758,7 @@ export default function InvoiceForm() {
           <div className="invoice-form-adjustments-grid" role="group" aria-label="Tax and discount">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="label" htmlFor="govTax">
-                Gov. tax (fixed LKR)
+                Gov. tax (fixed {currency})
               </label>
               <input
                 id="govTax"
@@ -811,7 +808,7 @@ export default function InvoiceForm() {
               <div className="invoice-form-stat">
                 <span className="invoice-form-stat-label">Avg. unit rate</span>
                 <span className="invoice-form-stat-value">
-                  {formatMoneyLkr(avgRate)} <span className="invoice-form-currency-suffix">LKR</span>
+                  {formatMoneyLkr(avgRate)} <span className="invoice-form-currency-suffix">{currency}</span>
                 </span>
               </div>
             </div>
@@ -819,7 +816,7 @@ export default function InvoiceForm() {
               <div className="invoice-form-money-row">
                 <span>Subtotal (lines)</span>
                 <span>
-                  {formatMoneyLkr(lineSubtotal)} <span className="invoice-form-currency-suffix">LKR</span>
+                  {formatMoneyLkr(lineSubtotal)} <span className="invoice-form-currency-suffix">{currency}</span>
                 </span>
               </div>
               {discountAmount > 0 && (
@@ -829,14 +826,14 @@ export default function InvoiceForm() {
                   </span>
                   <span>
                     −{formatMoneyLkr(discountAmount)}{' '}
-                    <span className="invoice-form-currency-suffix">LKR</span>
+                    <span className="invoice-form-currency-suffix">{currency}</span>
                   </span>
                 </div>
               )}
               <div className="invoice-form-money-row">
                 <span>Gov. tax (fixed)</span>
                 <span>
-                  {formatMoneyLkr(govTaxAmount)} <span className="invoice-form-currency-suffix">LKR</span>
+                  {formatMoneyLkr(govTaxAmount)} <span className="invoice-form-currency-suffix">{currency}</span>
                 </span>
               </div>
             </div>
@@ -845,7 +842,7 @@ export default function InvoiceForm() {
           <div className="invoice-form-total-bar">
             <span>Total due</span>
             <span>
-              {formatMoneyLkr(invoiceTotal)} <span className="invoice-form-currency-suffix">LKR</span>
+              {formatMoneyLkr(invoiceTotal)} <span className="invoice-form-currency-suffix">{currency}</span>
             </span>
           </div>
 
