@@ -1328,6 +1328,21 @@ textarea.input {
   color: var(--color-text-muted);
 }
 
+/* Recharts: axis + tooltip readable in dark mode */
+.dashboard-chart .recharts-cartesian-axis-tick text {
+  fill: var(--color-text-muted);
+}
+
+.dashboard-chart .recharts-default-tooltip {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dashboard-chart .recharts-tooltip-label,
+.dashboard-chart .recharts-tooltip-item {
+  color: var(--color-text) !important;
+}
+
 .dashboard-invoice-number {
   font-size: 0.875rem;
   font-weight: 600;

@@ -27,6 +27,20 @@ const LOW_STOCK_THRESHOLD = 10;
 
 const COLORS = ['#F06021', '#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#d94e0f'];
 
+const CHART_GRID_STROKE = 'var(--color-border)';
+const CHART_AXIS_TICK = { fontSize: 12, fill: 'var(--color-text-muted)' };
+const CHART_AXIS_TICK_SM = { fontSize: 11, fill: 'var(--color-text-muted)' };
+const RECHARTS_TOOLTIP_PROPS = {
+  contentStyle: {
+    backgroundColor: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '8px',
+    boxShadow: 'var(--shadow-md)',
+  },
+  labelStyle: { color: 'var(--color-text)', fontWeight: 600 },
+  itemStyle: { color: 'var(--color-text)' },
+};
+
 const INVOICE_STATUS_CLASS = {
   draft: 'badge-draft',
   sent: 'badge-sent',
@@ -350,15 +364,18 @@ export default function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={monthlyPaidChart} margin={{ top: 5, right: 12, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                  <XAxis dataKey="month" tick={CHART_AXIS_TICK} stroke={CHART_GRID_STROKE} />
                   <YAxis
-                    tick={{ fontSize: 12 }}
-                    stroke="#64748b"
+                    tick={CHART_AXIS_TICK}
+                    stroke={CHART_GRID_STROKE}
                     width={52}
                     tickFormatter={(v) => (Number(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v)}
                   />
-                  <Tooltip formatter={(v) => [`${formatMoneyLkr(v)} LKR`, 'Paid']} />
+                  <Tooltip
+                    {...RECHARTS_TOOLTIP_PROPS}
+                    formatter={(v) => [`${formatMoneyLkr(v)} LKR`, 'Paid']}
+                  />
                   <Line
                     type="monotone"
                     dataKey="paid"
@@ -398,10 +415,20 @@ export default function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={workOrderBarChart} margin={{ top: 5, right: 12, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#64748b" interval={0} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="#64748b" width={36} />
-                  <Tooltip formatter={(v) => [v, 'Work orders']} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                  <XAxis
+                    dataKey="name"
+                    tick={CHART_AXIS_TICK_SM}
+                    stroke={CHART_GRID_STROKE}
+                    interval={0}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={CHART_AXIS_TICK}
+                    stroke={CHART_GRID_STROKE}
+                    width={36}
+                  />
+                  <Tooltip {...RECHARTS_TOOLTIP_PROPS} formatter={(v) => [v, 'Work orders']} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                     {workOrderBarChart.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
