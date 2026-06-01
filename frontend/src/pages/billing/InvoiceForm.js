@@ -100,6 +100,33 @@ function aggregateCustomerWorkOrderItems(workOrders) {
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 }
 
+/** Build editable invoice rows from aggregated work-order materials (unit price left for user). */
+function aggregatesToInvoiceLineItems(aggregatedRows) {
+  return aggregatedRows
+    .filter((row) => Number(row.quantity) > 0)
+    .map((row) => ({
+      description: row.name,
+      quantity: Number(row.quantity) || 0,
+      unitPrice: 0,
+    }));
+}
+
+async function fetchAllCustomerWorkOrders(customerId) {
+  const all = [];
+  let page = 1;
+  const limit = 200;
+  for (;;) {
+    const body = await workOrdersApi.list({ customerId, limit, page, order: 'recent' });
+    const list = Array.isArray(body?.data) ? body.data : [];
+    all.push(...list);
+    const total = typeof body?.total === 'number' ? body.total : list.length;
+    if (all.length >= total || list.length < limit) break;
+    page += 1;
+    if (page > 50) break;
+  }
+  return all;
+}
+
 /** Match backend: lock editing after end of the due date (local calendar day). */
 function isInvoiceDueDatePassed(dueStr) {
   if (!dueStr) return false;
@@ -230,20 +257,34 @@ export default function InvoiceForm() {
     const cid = form.customerId && String(form.customerId).trim();
     if (!cid) {
       setCustomerWoItems([]);
+      if (!isEdit) {
+        setForm((prev) => ({ ...prev, lineItems: [initialLineItem()] }));
+      }
       return;
     }
     let cancelled = false;
+    setCustomerWoItems([]);
     setLoadingCustomerWoItems(true);
-    workOrdersApi
-      .list({ customerId: cid, limit: 500, order: 'recent', page: 1 })
-      .then((body) => {
+    fetchAllCustomerWorkOrders(cid)
+      .then((list) => {
         if (cancelled) return;
-        const raw = body?.data;
-        const list = Array.isArray(raw) ? raw : [];
-        setCustomerWoItems(aggregateCustomerWorkOrderItems(list));
+        const aggregated = aggregateCustomerWorkOrderItems(list);
+        setCustomerWoItems(aggregated);
+        if (!isEdit) {
+          const built = aggregatesToInvoiceLineItems(aggregated);
+          setForm((prev) => ({
+            ...prev,
+            lineItems: built.length > 0 ? built : [initialLineItem()],
+          }));
+        }
       })
       .catch(() => {
-        if (!cancelled) setCustomerWoItems([]);
+        if (!cancelled) {
+          setCustomerWoItems([]);
+          if (!isEdit) {
+            setForm((prev) => ({ ...prev, lineItems: [initialLineItem()] }));
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingCustomerWoItems(false);
@@ -251,7 +292,15 @@ export default function InvoiceForm() {
     return () => {
       cancelled = true;
     };
-  }, [form.customerId]);
+  }, [form.customerId, isEdit]);
+
+  const applyWorkOrdersToLineItems = () => {
+    const built = aggregatesToInvoiceLineItems(customerWoItems);
+    setForm((prev) => ({
+      ...prev,
+      lineItems: built.length > 0 ? built : [initialLineItem()],
+    }));
+  };
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -633,6 +682,13 @@ export default function InvoiceForm() {
             </div>
           </div>
 
+          {!isEdit && form.customerId && customerWoItems.length > 0 && !loadingCustomerWoItems && (
+            <p className="invoice-form-party-meta" role="status" style={{ marginBottom: '0.75rem' }}>
+              Line items below were filled from this customer&apos;s work orders. You can change descriptions,
+              quantities, and unit prices, or add and remove rows.
+            </p>
+          )}
+
           <div className="table-wrap invoice-form-table-wrap">
             <table className="invoice-form-lines">
               <thead>
@@ -746,14 +802,26 @@ export default function InvoiceForm() {
             </table>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-secondary repeatable-add"
-            onClick={addLineItem}
-            disabled={frozen}
-          >
-            + Add line item
-          </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary repeatable-add"
+              onClick={addLineItem}
+              disabled={frozen}
+            >
+              + Add line item
+            </button>
+            {!isEdit && form.customerId && customerWoItems.length > 0 && !frozen && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={loadingCustomerWoItems}
+                onClick={applyWorkOrdersToLineItems}
+              >
+                Reload from work orders
+              </button>
+            )}
+          </div>
 
           <div className="invoice-form-adjustments-grid" role="group" aria-label="Tax and discount">
             <div className="form-group" style={{ marginBottom: 0 }}>
